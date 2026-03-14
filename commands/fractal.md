@@ -100,11 +100,39 @@ created: 2026-03-14
 Context from execution: what was tried, what was learned, why decisions were made.
 ```
 
+### Deriving execution state from artifacts
+
+The execution state of a node is NEVER stored explicitly — it's derived from which
+artifacts exist in the directory:
+
+| Artifacts present | Execution state | What to do |
+|---|---|---|
+| Only `predicate.md` | Not started | Evaluate: try, cycle, or subdivide |
+| `predicate.md` + child dirs | Subdivided | Check children's status |
+| `plan.md` exists | Planned | Run delivery |
+| `plan.md` + `results.md` | Executed | Run review |
+| `plan.md` + `results.md` + `review.md` | Reviewed | HITL validate, then ship or redo |
+| `status: satisfied` in frontmatter | Satisfied | Move to parent |
+| `status: pruned` in frontmatter | Pruned | Move to parent |
+
+This means a new session can always determine exactly where execution stopped by
+reading the filesystem. Zero stale state.
+
+### Notes discipline
+
+Before any checkpoint (user validation, `/clear`, end of session), update the `# Notes`
+section of the active node's `predicate.md` with:
+- What was attempted and the outcome
+- Key decisions made and why
+- What the next session needs to know to continue
+
+A new session reads `predicate.md` and has full context. If notes are empty, context is lost.
+
 ### Conventions
 
 - Directory name = slug of the predicate (kebab-case, short)
 - Depth = nesting of directories
-- Status is in `predicate.md` frontmatter
+- Status is in `predicate.md` frontmatter, execution state is derived from artifacts
 - `active_node` in `root.md` is a relative path to the active node's directory
 - Cycle artifacts (`plan.md`, `results.md`, `review.md`) follow the same format as Launchpad
 - `ls` shows the tree. `cat` shows the state. No parser needed.
@@ -117,7 +145,9 @@ Read `~/git/fractal/LAW.md` for the full specification. Here is the operational 
 
 ### 1. Find the active node
 
-Read `.fractal/root.md` → get `active_node` path → read that node's `predicate.md`.
+Read `.fractal/root.md` → get `active_node` path → read that node's `predicate.md` →
+list artifacts in the directory to derive execution state.
+
 Present it:
 
 ```
@@ -125,8 +155,11 @@ Projeto: "<root predicate>"
 Nó ativo: "<active predicate>"
 Caminho: <path from root>
 Pai: "<parent predicate>" (or "raiz" if top-level)
+Estado: <derived from artifacts — e.g. "planned, awaiting delivery">
 Filhos satisfeitos: N/M
 ```
+
+If notes exist in `predicate.md`, read them to recover context from the previous session.
 
 ### 2. Evaluate the predicate
 
