@@ -22,14 +22,14 @@ if git rev-parse --is-inside-work-tree 2>/dev/null; then
 fi
 
 # Find the tree
-TREE_PATH="${REPO_ROOT:-.}/.fractal/tree.json"
+FRACTAL_DIR="${REPO_ROOT:-.}/.fractal"
 ```
 
 ### Route
 
-- **No tree exists + no arguments** → ask the user what they want to accomplish
-- **No tree exists + arguments** → extract objective from arguments, start extraction flow
-- **Tree exists** → read tree, find active node, run the primitive
+- **No `.fractal/` dir + no arguments** → ask the user what they want to accomplish
+- **No `.fractal/` dir + arguments** → extract objective from arguments, start extraction flow
+- **`.fractal/` exists** → read tree from filesystem, find active node, run the primitive
 
 ---
 
@@ -45,24 +45,69 @@ This is NOT part of the primitive — it's the pre-condition. Invest maximum ene
    - Useful ("app showing bike lanes in real time for cyclists in SP") → rejects irrelevant steps, survives implementation changes
    - Too concrete ("PWA with Mapbox GL + CET API layer") → rigid plan disguised as objective
    - Test: if the entire tech stack changed, would this predicate still make sense?
-5. When the user confirms → create the tree with root predicate → save to disk
+5. When the user confirms → create the root directory and `predicate.md` → save to disk
 
-```json
-{
-  "version": 1,
-  "roots": [
-    {
-      "id": "root-1",
-      "predicate": "the falsifiable condition",
-      "status": "pending",
-      "active": true,
-      "children": [],
-      "created": "2026-03-14",
-      "notes": ""
-    }
-  ]
-}
+---
+
+## Filesystem structure
+
+The tree IS the filesystem. Each directory is a predicate node. Artifacts from the
+execution cycle live inside the node.
+
 ```
+.fractal/
+  root.md                    # active node pointer + history of root changes
+  dados-ciclofaixas/         # predicate node (child of root)
+    predicate.md             # falsifiable condition, status, created date, notes
+    plan.md                  # from /launchpad:planning
+    results.md               # from /launchpad:delivery
+    review.md                # from /launchpad:review
+    endpoint-geojson/        # nested predicate (grandchild)
+      predicate.md
+      plan.md
+      results.md
+      review.md
+  mapa-renderiza/            # predicate node (child of root)
+    predicate.md
+```
+
+### root.md
+
+```markdown
+---
+predicate: "the root falsifiable condition"
+status: pending
+active_node: dados-ciclofaixas/endpoint-geojson
+created: 2026-03-14
+---
+
+# Root history
+
+Previous roots are recorded here when the objective mutates.
+```
+
+### predicate.md (inside each node directory)
+
+```markdown
+---
+predicate: "the falsifiable condition for this node"
+status: pending | satisfied | pruned
+created: 2026-03-14
+---
+
+# Notes
+
+Context from execution: what was tried, what was learned, why decisions were made.
+```
+
+### Conventions
+
+- Directory name = slug of the predicate (kebab-case, short)
+- Depth = nesting of directories
+- Status is in `predicate.md` frontmatter
+- `active_node` in `root.md` is a relative path to the active node's directory
+- Cycle artifacts (`plan.md`, `results.md`, `review.md`) follow the same format as Launchpad
+- `ls` shows the tree. `cat` shows the state. No parser needed.
 
 ---
 
@@ -72,11 +117,14 @@ Read `~/git/fractal/LAW.md` for the full specification. Here is the operational 
 
 ### 1. Find the active node
 
-Read `tree.json`. Walk the tree to find the node with `"active": true`. Present it:
+Read `.fractal/root.md` → get `active_node` path → read that node's `predicate.md`.
+Present it:
 
 ```
-Nó ativo: "<predicate text>"
-Pai: "<parent predicate>" (or "raiz" if root)
+Projeto: "<root predicate>"
+Nó ativo: "<active predicate>"
+Caminho: <path from root>
+Pai: "<parent predicate>" (or "raiz" if top-level)
 Filhos satisfeitos: N/M
 ```
 
@@ -86,8 +134,8 @@ Assess the active predicate against three checks, in order:
 
 **Check 1: Is it unachievable?**
 If you recognize the predicate cannot be satisfied given current constraints → propose
-pruning to the user. If confirmed: set `status: "pruned"`, move active to parent,
-re-evaluate parent.
+pruning to the user. If confirmed: set `status: pruned` in `predicate.md`, update
+`active_node` in `root.md` to parent directory, re-evaluate parent.
 
 **Check 2: Can a try satisfy it?**
 The predicate is trivial enough to implement directly in one shot. Criteria:
@@ -109,7 +157,7 @@ can handle it. Criteria:
 
 If yes → propose to the user: "Este predicado precisa de um ciclo completo. Concordo?"
 If confirmed → invoke `/launchpad:planning` with the predicate, then follow with
-delivery → review → ship.
+delivery → review → ship. Artifacts are saved inside the node directory.
 After cycle completes → ask user to validate the predicate was satisfied.
 
 **Check 4: None of the above → subdivide**
@@ -130,7 +178,8 @@ Motivo: <why this child most reduces uncertainty>
 Aceita?
 ```
 
-If accepted → add child node, set it as active, save tree.
+If accepted → create child directory with `predicate.md`, update `active_node` in
+`root.md` to the new child path.
 If rejected → propose a different sub-predicate.
 
 ### 3. Handle validation results
@@ -138,66 +187,36 @@ If rejected → propose a different sub-predicate.
 After execution (try or cycle):
 
 **User confirms predicate satisfied:**
-- Set node `status: "satisfied"`
-- Move active to parent
+- Set `status: satisfied` in node's `predicate.md`
+- Update `active_node` in `root.md` to parent directory
 - Re-evaluate parent: maybe it's now satisfiable, maybe it needs another child
 
 **User says not satisfied:**
-- Keep node as active, status remains "pending"
+- Keep node as active, status remains `pending`
 - Re-run the primitive (will re-evaluate and try again or subdivide further)
 
-### 4. Save the tree
+### 4. Objective mutation
 
-After every operation, write `tree.json` to disk. The tree is the source of truth.
-
----
-
-## Tree schema
-
-```json
-{
-  "version": 1,
-  "roots": [
-    {
-      "id": "string",
-      "predicate": "falsifiable condition",
-      "status": "pending | satisfied | pruned",
-      "active": true,
-      "children": [
-        {
-          "id": "string",
-          "predicate": "falsifiable condition",
-          "status": "pending | satisfied | pruned",
-          "active": false,
-          "children": [],
-          "created": "YYYY-MM-DD",
-          "notes": "any context from execution"
-        }
-      ],
-      "created": "YYYY-MM-DD",
-      "notes": ""
-    }
-  ]
-}
-```
-
-- `roots` is an array: when the objective mutates, a new root is added. Previous roots persist as history.
-- Only ONE node across the entire tree has `"active": true`.
-- `notes` captures context from execution (what was tried, what was learned).
+If the user decides the root objective has changed:
+- Record current root in the history section of `root.md`
+- Update the root predicate and `active_node`
+- Old child directories persist as history
+- Recursion restarts from the new root
 
 ---
 
 ## Resuming
 
-When called with no arguments and a tree exists:
+When called with no arguments and `.fractal/` exists:
 
-1. Read tree
+1. Read `root.md`
 2. Show current state:
    ```
    Projeto: <root predicate>
    Nó ativo: <active predicate>
+   Caminho: <path>
    Profundidade: N
-   Predicados satisfeitos: X/Y
+   Predicados satisfeitos: X/Y total
    ```
 3. Run the primitive on the active node
 
@@ -207,7 +226,7 @@ When called with no arguments and a tree exists:
 
 - **One question at a time.** Never stack questions.
 - **Push back.** Challenge scope, assumptions, predicate quality.
-- **The tree is truth.** Always read before acting, always save after acting.
+- **The filesystem is truth.** Always read before acting, always save after acting.
 - **HITL always.** Validate every proposed predicate. Validate every result.
 - **Subagents use model: sonnet.** Never opus in a subagent.
 - **Discovery is the primitive.** Every evaluation of a predicate IS discovery. Don't invoke `/launchpad:discovery` separately — this skill replaces it.
