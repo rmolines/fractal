@@ -1,4 +1,4 @@
-# A Lei do Arbol
+# A Lei do Fractal
 
 ## A primitiva
 
@@ -7,20 +7,25 @@ Existe uma única operação que governa todo trabalho entre humano e agente:
 ```
 // ponto de entrada
 predicado_raiz ← extrair_objetivo(humano)  // pré-condição, não parte da primitiva
-arbol(predicado_raiz)
+fractal(predicado_raiz)
 
-arbol(predicado):
+fractal(predicado):
+  // esta avaliação É discovery — o agente raciocinando sobre o predicado
+
   se inatingível(predicado):
     podar(predicado)
     retorna podado
 
   senão se try_consegue_satisfazer(predicado):
     try(predicado)
-    humano valida → satisfeito | arbol(predicado)
+    humano valida → satisfeito | fractal(predicado)
 
   senão se ciclo_consegue_satisfazer(predicado):
-    ciclo(predicado)  // discovery → delivery → review → ship
-    humano valida → satisfeito | arbol(predicado)
+    planning(predicado)
+    delivery(predicado)
+    review(predicado)
+    ship(predicado)
+    humano valida → satisfeito | fractal(predicado)
 
   senão:
     // escolhe o sub-predicado que, satisfeito, mais reduz a incerteza
@@ -28,17 +33,25 @@ arbol(predicado):
     // importante, mas o que mais clarifica o caminho
     filho ← propor sub-predicado
     humano valida proposta:
-      se aceita → arbol(filho), depois arbol(predicado)
-      se rejeita → arbol(predicado)  // propõe outro filho
+      se aceita → fractal(filho), depois fractal(predicado)
+      se rejeita → fractal(predicado)  // propõe outro filho
 ```
 
 Essa operação é fractal. Funciona identicamente em qualquer escala — de "criar uma empresa" a "renomear essa variável". Não existem tipos diferentes de planejamento. Existe uma operação, repetida.
 
 A árvore cresce lazy — um filho por vez. Depois de satisfazer um filho, o pai é re-avaliado: talvez já seja satisfazível, talvez precise de outro filho. A re-avaliação decide.
 
+### Mapeamento com o ciclo de execução
+
+- **Discovery** = a própria primitiva. Toda vez que `fractal()` roda, está fazendo discovery: avaliando o predicado, decidindo se é atômico ou precisa subdividir, propondo sub-predicados.
+- **Planning → Delivery → Review → Ship** = a unidade atômica de execução para predicados complexos. Satisfaz o predicado.
+- **Try** = atalho para predicados triviais demais pro ciclo completo.
+
+Discovery não é uma fase separada — é a recursão em si.
+
 ### Extração do objetivo
 
-Pré-condição da primitiva. Antes da primeira chamada `arbol()`, o agente investe energia máxima em:
+Pré-condição da primitiva. Antes da primeira chamada `fractal()`, o agente investe energia máxima em:
 1. Descobrir o verdadeiro objetivo por trás do pedido (o humano pode não saber o que quer)
 2. Antecipar o "cair na real" — quando o humano vai descobrir que queria outra coisa
 3. Tornar o objetivo falsificável — condição concreta que prova que foi atingido
@@ -53,14 +66,6 @@ O humano valida em dois momentos:
 
 Rejeição na proposta → agente propõe outro predicado. Rejeição no resultado → agente refaz a execução. Não são casos especiais — são re-avaliações naturais da primitiva.
 
-### Dois modos de execução
-
-O caso base tem dois modos, e o agente decide qual:
-- **Try:** predicados triviais. Implementa, valida, aprova ou descarta.
-- **Ciclo completo:** predicados complexos. Discovery → delivery → review → ship.
-
-Paralelismo (múltiplos subagentes) é estratégia interna do ciclo — aumenta a capacidade de satisfazer predicados maiores. Do ponto de vista da árvore, continua sendo um nó, um predicado, um resultado.
-
 ## Definições
 
 **Predicado:** uma condição falsificável que, quando satisfeita, constitui progresso em direção ao predicado pai. Não é uma tarefa — é uma verdade a ser alcançada. A ação emerge do predicado.
@@ -69,7 +74,7 @@ Paralelismo (múltiplos subagentes) é estratégia interna do ciclo — aumenta 
 
 **Predicado raiz:** o objetivo extraído do humano. Está na zona útil de abstração — específico o suficiente para rejeitar passos irrelevantes, abstrato o suficiente para sobreviver a mudanças de implementação.
 
-**Predicado atômico:** aquele que um try ou um ciclo consegue satisfazer diretamente. É o caso base da recursão.
+**Predicado atômico:** aquele que um try ou um ciclo (planning → delivery → review → ship) consegue satisfazer diretamente. É o caso base da recursão.
 
 **Nó ativo:** existe sempre um e apenas um predicado sendo trabalhado. Uma sessão nova lê a árvore, encontra o nó ativo, e continua. É o estado completo da sessão.
 
