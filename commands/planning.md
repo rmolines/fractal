@@ -193,7 +193,7 @@ Each deliverable follows this structure:
 **Executor:** sonnet | haiku
 **Isolation:** worktree | none
 **Depends on:** none | D<X> | D<X>, D<Y>
-**Requirements:** R<N>, R<M>
+**Predicate:** <the falsifiable condition this deliverable advances>
 **Files touched:**
 - `path/to/file1`
 - `path/to/file2`
@@ -232,7 +232,7 @@ Each deliverable follows this structure:
 **Acceptance:** `<command>` → <what must pass>
 ```
 
-Each deliverable must reference which requirements from the predicate it addresses using R<N> IDs. This enables requirement traceability in the plan-view.
+All deliverables serve the same predicate — the node's falsifiable condition. The predicate line in each deliverable restates which aspect of the predicate this deliverable advances (for clarity, not traceability).
 
 ### Prompt quality checklist
 
@@ -245,7 +245,7 @@ Before finalizing each deliverable's prompt, verify:
 - [ ] Has a runnable validation command with expected output
 - [ ] Requests structured result format
 - [ ] If touching hot files: includes "read before editing" warning
-- [ ] Specifies which requirements (R<N>) this deliverable covers
+- [ ] States which aspect of the predicate this deliverable advances
 - [ ] Incorporates relevant technical context from the predicate (stack, patterns, constraints, decisions)
 
 ---
@@ -289,7 +289,7 @@ See `~/git/fractal/templates/schemas.md` for the full format.
 task: D1
 title: Walking skeleton — end-to-end integration
 depends_on:
-requirements: R1, R2
+predicate: <aspect of the node predicate this advances>
 executor: sonnet
 isolation: worktree
 batch: 1
@@ -302,7 +302,7 @@ acceptance: npm test exits 0
 task: D2
 title: Environment variable scaffolding
 depends_on:
-requirements: R1, R2
+predicate: <aspect of the node predicate this advances>
 executor: haiku
 isolation: none
 batch: 1
@@ -314,7 +314,7 @@ acceptance: grep "NEW_VAR" .env.example returns the line
 task: D3
 title: New API endpoint with integration test
 depends_on: D1
-requirements: R1, R3
+predicate: <aspect of the node predicate this advances>
 executor: sonnet
 isolation: worktree
 batch: 2
@@ -386,7 +386,7 @@ Recommend /clear before continuing.
 | Prompt assumes session context | Include ALL needed context in the prompt — no implicit state |
 | All deliverables sequential without reason | Find parallelism — if they don't touch the same files, they can be parallel |
 | Deliverable without validation | Add a command that confirms the concrete result |
-| Plan with 9+ deliverables | Merge related ones — plan should have 3-8 deliverables |
+| Plan with 9+ deliverables | The predicate is too broad — go back to /fractal and subdivide into child nodes |
 | Opus as default executor | Sonnet executes. Opus only for complex architectural reasoning — justify |
 | Vague prompt ("implement feature X") | Include paths, relevant snippets, resolved decisions, explicit boundaries |
 | Gate after every deliverable | Gates only at real review points — not at every step |

@@ -72,7 +72,7 @@ Signs it is **too complex**:
 If too complex, say:
 
 > "I think this might be too complex for a quick try — it involves [reason]. Want me
-> to continue with `/fractal:try`, or would `/fractal:discovery` be a better starting
+> to continue with `/fractal:try`, or would `/fractal` be a better starting
 > point?"
 
 This is a suggestion, not a blocker. If the user says "continue" or "just do it" — proceed.
@@ -347,16 +347,16 @@ Done.
 - **Zero questions is the default.** Only ask if ambiguity would cause significant rework.
 - **Worktree is always isolated.** No option to implement directly on the current branch.
 - **Complexity check is a suggestion, not a blocker.** User can always override.
-- **No artifacts persisted.** No draft.md, prd.md, plan.md — nothing written to disk except the code.
+- **No artifacts persisted.** No predicate.md, plan.md — nothing written to `.fractal/` except the code itself.
 - **Subagent always uses model: sonnet.** Never opus.
 - **Build + test is a hard gate on approval.** Stop and report if it fails. Never force a broken PR.
-- **References to other skills use full prefix:** `/fractal:discovery`, `/fractal:planning`, `/fractal:delivery`, `/fractal:ship`, etc.
+- **References to other skills use full prefix:** `/fractal`, `/fractal:planning`, `/fractal:delivery`, `/fractal:ship`, etc.
 
 ---
 
 ## When NOT to use
 
-- Complex feature with multiple risks → use `/fractal:discovery`
-- Already have a PRD and need a plan → use `/fractal:planning`
+- Complex feature with multiple risks → use `/fractal`
+- Already have a predicate and need a plan → use `/fractal:planning`
 - Already have a plan, need orchestration → use `/fractal:delivery`
 - Bug investigation (cause unknown) → use `/debug` or `/fix`
