@@ -2,6 +2,7 @@
 description: "Transforms a fractal predicate into an executable plan with self-contained deliverables, dependency graph, and human gates. Use after /fractal produces a predicate.md."
 argument-hint: "path to the fractal node directory (e.g. .fractal/node-slug)"
 allowed-tools: AskUserQuestion
+user-invocable: false
 ---
 
 # /fractal:planning

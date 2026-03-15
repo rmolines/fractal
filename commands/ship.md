@@ -2,6 +2,7 @@
 description: "Puts approved code into production and closes the cycle. PR + CI + deploy + simplify + docs + cleanup. Use after /fractal:review approves."
 argument-hint: "path to the fractal node directory (e.g. .fractal/node-slug)"
 allowed-tools: AskUserQuestion
+user-invocable: false
 ---
 
 # /fractal:ship

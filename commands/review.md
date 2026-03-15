@@ -2,6 +2,7 @@
 description: "Decision gate that validates implementation against the fractal node predicate. Spawns an independent evaluator, then decides: back to planning, back to delivery, back to fractal, or approved for ship."
 argument-hint: "path to the fractal node directory (e.g. .fractal/node-slug)"
 allowed-tools: AskUserQuestion
+user-invocable: false
 ---
 
 # /fractal:review

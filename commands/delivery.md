@@ -2,6 +2,7 @@
 description: "Executes an approved plan by orchestrating subagents in parallel batches. Use after /fractal:planning produces an approved plan.md."
 argument-hint: "path to the fractal node directory (e.g. .fractal/node-slug)"
 allowed-tools: AskUserQuestion
+user-invocable: false
 ---
 
 # /fractal:delivery
