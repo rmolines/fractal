@@ -202,3 +202,56 @@ Too concrete:  "PWA with Mapbox + CET API"       → rigid plan disguised as a g
 ```
 
 A predicate in the useful zone is one that still makes sense even if the entire stack changes.
+
+---
+
+## Risk-return scoring
+
+When the tree has multiple pending nodes, the system must pick one to work on next. The scoring model has three dimensions.
+
+### 1. Incerteza (Uncertainty)
+
+Measured as `max()` of three sub-dimensions:
+
+**Executabilidade** — "Can the agent deliver this well, given its known limitations?" Covers both technical feasibility and agent self-awareness (e.g., the agent is weak at UI/UX, may have outdated information about a library, or lacks access to required external systems).
+
+**Coerência** — "Does this clearly contribute to the parent predicate, and do human and agent understand the same thing?" Catches both drift from parent intent and miscommunication about scope.
+
+**Verificabilidade** — "Can satisfaction be confirmed with available means?" Catches both external dependencies (requires real users, live APIs, or production data) and predicates whose success criterion is inherently subjective.
+
+Each sub-dimension scores **high / medium / low**. Incerteza = max(executabilidade, coerência, verificabilidade).
+
+| | High | Medium | Low |
+|---|---|---|---|
+| **Executabilidade** | "recursive skills work with 3 levels of nesting" (never tested if Skill tool supports recursion) | "readme converts visitors" (hypothesis but no data) | "add badge to README" (clear how to do, no unknowns) |
+| **Coerência** | patch-improve-run-ui under eleicao-risco-retorno (UX improvement doesn't address risk-return logic) | "validacao-contextual" (related but tangential to parent) | "criterios-risco-retorno-doc" under eleicao-risco-retorno (directly addresses parent) |
+| **Verificabilidade** | "test-outsider" (requires a real external user to validate) | "readme-converte" (partially testable with analytics) | "engineering-standards" (verifiable by code inspection) |
+
+### 2. Impacto (Impact)
+
+How much does satisfying this predicate change the truth value of its parent? **High** = parent is dramatically closer to satisfied. **Low** = marginal contribution.
+
+| High | Medium | Low |
+|---|---|---|
+| "simulacao-novo-usuario" (validates the entire user journey) | "validacao-contextual" (improves one facet of the parent) | "auto-save-notes" (convenience feature, not load-bearing) |
+
+### 3. Retorno (Return)
+
+Value gained relative to effort required. **High** = large payoff for small investment. **Low** = substantial work for marginal gain.
+
+| High | Medium | Low |
+|---|---|---|
+| 1-file patch that unblocks 3 downstream nodes | 1-week sprint that advances 1 node by one step | long open-ended investigation with uncertain result |
+
+### Priority rule
+
+**Incerteza-first.** Kill the unknown before optimizing value delivery. Within the same uncertainty tier, tiebreak by impacto × retorno.
+
+| Tier | Condition | Rationale |
+|---|---|---|
+| 1 | Incerteza **alta** | Untested premise that could invalidate everything below it |
+| 2 | Incerteza **média** | Meaningful uncertainty, but the direction is probably right |
+| 3 | Incerteza **baixa** | Execution risk only — do after higher-uncertainty nodes |
+| Tiebreak | Same tier | impacto alto + retorno alto > impacto alto + retorno médio > … |
+
+The evaluate agent uses this model when proposing candidate children (ordered by priority). `select-next-node` uses this model when traversing the tree to choose the next active node.
