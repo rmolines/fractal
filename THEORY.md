@@ -50,7 +50,7 @@ The tree grows lazy — one child at a time. After a child is satisfied, the par
 
 ### Predicate tree, not task tree
 
-**The agent does not define atomic steps — it defines atomic predicates.** The entire tree is a tree of falsifiable predicates. Actions emerge from predicates: "what do I need to do to make this predicate true?"
+**The agent does not define atomic steps — it defines atomic predicates.** The entire tree is a tree of predicates — satisfiable at branches (human judges composition), verifiable at leaves (world confirms). Actions emerge from predicates: "what do I need to do to make this predicate true?"
 
 ```
 Root predicate: "cyclists in São Paulo can see bike lanes in real time on their phones"
@@ -62,7 +62,7 @@ Root predicate: "cyclists in São Paulo can see bike lanes in real time on their
 
 ### Closure property
 
-Each level of the tree inherits the same type (falsifiable predicate). Satisfying a child contributes to satisfying the parent. The algebra is closed by construction — no extra composition mechanism needed.
+Each level of the tree inherits the same type (predicate). Branches are satisfiable (human judges "enough"); leaves are verifiable (world confirms). Satisfying a child contributes to satisfying the parent. The algebra is closed by construction — no extra composition mechanism needed.
 
 ---
 
@@ -71,7 +71,7 @@ Each level of the tree inherits the same type (falsifiable predicate). Satisfyin
 Precondition of the primitive, not part of it. Before the first `fractal()` call, the agent invests maximum energy in:
 1. Uncovering the real goal behind the request (Socratic extraction)
 2. Anticipating the "reality check" — when the human will discover they wanted something else
-3. Making the goal falsifiable — a concrete condition that proves it was reached
+3. Making the goal verifiable — a concrete condition that proves it was reached
 
 Without a clear goal → predicate breaks down → recursion has no base case → divergence (= AutoGPT).
 
@@ -123,7 +123,7 @@ Parallelism (multiple subagents) is an internal strategy of the cycle — it inc
 
 ## Persistence
 
-The predicate tree is the persistent on-disk representation. Each node: predicate (falsifiable condition), status (pending | satisfied | pruned), children.
+The predicate tree is the persistent on-disk representation. Each node: predicate (condition — verifiable for leaves, satisfiable for branches), status (pending | satisfied | pruned), children.
 
 There is no separate "plan". The tree is the plan, the log, and the state. There is always exactly one active node — the predicate currently being worked on. A new session reads the tree, finds the active node, and continues. It is the complete state of the session.
 

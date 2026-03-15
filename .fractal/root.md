@@ -1,7 +1,7 @@
 ---
 predicate: "desenvolvedores que usam Claude Code encontram o fractal, entendem a proposta em 30 segundos, instalam, e usam no projeto deles"
 status: pending
-active_node: paper-mcp-uiux-flow/protocolo-design-paper
+active_node: .
 created: 2026-03-14
 ---
 

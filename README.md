@@ -1,4 +1,6 @@
-# OpenPredicaTree
+# Fractal
+
+Recursive project management for Claude Code.
 
 You tell it what you want. It figures out how to get there.
 
@@ -6,7 +8,7 @@ Most AI coding tools wait for instructions. You say "build this feature," they b
 it. You say "fix this bug," they fix it. The thinking is on you. You decide what to
 work on, in what order, and hope you're not wasting time on the wrong thing.
 
-OpenPredicate works differently. You state an objective. The agent figures out what
+Fractal works differently. You state an objective. The agent figures out what
 the biggest risk is, goes after that first, and keeps adjusting as it learns. It
 doesn't follow a plan. At each step it asks: "what could I figure out right now
 that would most change what we do next?"
@@ -15,7 +17,7 @@ It's a Claude Code plugin. Works on any project.
 
 ## How
 
-You give it a goal. The agent turns it into a falsifiable predicate: not "implement
+You give it a goal. The agent turns it into a verifiable predicate: not "implement
 billing" but "users can pay monthly per seat via Stripe." Then it breaks that down,
 one piece at a time, always picking the piece that reduces the most uncertainty.
 
@@ -59,7 +61,7 @@ Other tools ask you to break your project into tasks upfront. You write a PRD,
 it becomes a list, the agent follows the list. If a task turns out to be wrong,
 you edit the list manually.
 
-OpenPredicate doesn't need a list. You state the goal, it picks the riskiest
+Fractal doesn't need a list. You state the goal, it picks the riskiest
 piece, works on it, then reassesses. If a path doesn't work out, it backs up
 and tries another. You never maintain a plan doc.
 
@@ -79,7 +81,7 @@ fractal(predicate):
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rmolines/openpredicatree/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rmolines/fractal/master/install.sh | bash
 ```
 
 Start a new session (quit and run `claude` again). Run `/fractal:run` in any repo.

@@ -1,6 +1,6 @@
 {
   "name": "fractal",
-  "description": "OpenPredicaTree — recursive predicate primitive with branch/leaf classification, discovery phase, and PRD-driven sprint cycle for human+agent collaboration.",
+  "description": "Fractal — recursive project management for Claude Code. Decomposes goals into predicates, works on the riskiest unknown first.",
   "version": "0.5.6",
   "author": {
     "name": "rmolines"

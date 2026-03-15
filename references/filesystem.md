@@ -13,7 +13,7 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
   ciclofaixas/                 # the single tree for this repo
     root.md                    # root predicate + active node pointer
     dados-cet/                 # leaf node (child of root)
-      predicate.md             # falsifiable condition, status, notes
+      predicate.md             # verifiable condition, status, notes
       session.lock             # optional: active session claim (auto-managed)
       discovery.md             # from evaluator: node_type, classification
       prd.md                   # from specify step: acceptance criteria (leaf only)
@@ -38,7 +38,7 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
 
 ```markdown
 ---
-predicate: "the root falsifiable condition"
+predicate: "the root verifiable condition"
 status: pending
 active_node: .
 created: 2026-03-14
@@ -55,7 +55,7 @@ Previous roots are recorded here when the objective mutates.
 
 ```markdown
 ---
-predicate: "the falsifiable condition for this node"
+predicate: "the verifiable condition for this node"
 status: pending | satisfied | pruned | candidate
 created: 2026-03-14
 ---
@@ -119,14 +119,14 @@ executed against it. Leaf nodes get `prd.md` → `plan.md` → `results.md` → 
 
 ```markdown
 ---
-predicate: "the falsifiable condition from predicate.md"
+predicate: "the verifiable condition from predicate.md"
 created: 2026-03-15
 ---
 
 ## Acceptance Criteria
 
-- Criterion 1: <falsifiable, maps to a deliverable>
-- Criterion 2: <falsifiable, maps to a deliverable>
+- Criterion 1: <verifiable, maps to a deliverable>
+- Criterion 2: <verifiable, maps to a deliverable>
 
 ## Out of Scope
 
@@ -137,7 +137,7 @@ created: 2026-03-15
 - <technical or design constraint>
 ```
 
-`prd.md` exists only on leaf nodes. It translates the predicate's falsifiable condition
+`prd.md` exists only on leaf nodes. It translates the predicate's verifiable condition
 into concrete acceptance criteria that `/fractal:planning` uses to extract functional
 requirements and build deliverables. The human validates `prd.md` before sprint begins.
 

@@ -1,8 +1,8 @@
 /**
- * OpenPredicaTree — Node State Machine (XState v5)
+ * Fractal — Node State Machine (XState v5)
  *
  * DOCUMENTATION ONLY — not runtime code. Formalizes the statechart for the
- * OpenPredicaTree state machine. Complies with XState v5 type signature
+ * Fractal state machine. Complies with XState v5 type signature
  * but is not imported anywhere.
  *
  * Models the lifecycle of a single predicate node in the tree.
@@ -101,9 +101,9 @@ type NodeEvent =
 // Machine definition
 // ---------------------------------------------------------------------------
 
-export const openPredicaTreeNode = createMachine(
+export const fractalNode = createMachine(
   {
-    id: "openPredicaTreeNode",
+    id: "fractalNode",
     types: {} as {
       context: NodeContext;
       events: NodeEvent;
@@ -386,4 +386,4 @@ export const openPredicaTreeNode = createMachine(
 // the formal XState machine. fractal-state.sh computes these signals.
 // ---------------------------------------------------------------------------
 
-export type OpenPredicaTreeNodeMachine = typeof openPredicaTreeNode;
+export type FractalNodeMachine = typeof fractalNode;

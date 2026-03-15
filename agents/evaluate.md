@@ -22,7 +22,7 @@ You receive a predicate and a repo context. You answer ONE question:
 2. Search the repo: existing implementations, related code, config, dependencies.
 3. Assess: can this predicate be satisfied directly by a sprint?
 4. If yes (leaf) — write a one-sentence `prd_seed` scoping exactly what a PRD must cover.
-5. If no (branch) — propose 2-5 child predicates that together cover the parent. Each child should be independently falsifiable.
+5. If no (branch) — propose 2-5 child predicates that together cover the parent. Each child should be independently verifiable.
 
 ## Leaf criteria — ALL must be true
 
@@ -98,5 +98,5 @@ files_relevant:
 - `node_type: branch` → fill `proposed_children` (2-5 items), leave `prd_seed` empty
 - `node_type: leaf` → fill `prd_seed`, leave `proposed_children` empty
 - `confidence: low` → `/fractal:run` will emphasize human validation of the classification
-- Each `proposed_children` item must be a falsifiable predicate, not a task
+- Each `proposed_children` item must be a verifiable predicate, not a task
 - `prd_seed` must be one sentence that scopes the PRD — not the predicate restated, but the concrete scope of work

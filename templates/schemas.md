@@ -179,7 +179,7 @@ What was found in the repo, what informed the classification.
 | `node_type` | enum | `branch` (composite — satisfied by children) / `leaf` (executable — satisfied by sprint) |
 | `confidence` | enum | `high` (clear evidence) / `medium` (reasonable inference) / `low` (best guess, may need human override) |
 | `reasoning` | string | 2-3 sentences. What was found and why this classification. |
-| `proposed_children` | list | 2-5 items. Branch only. Each item is a falsifiable predicate string. Empty or omitted for leaf nodes. |
+| `proposed_children` | list | 2-5 items. Branch only. Each item is a verifiable predicate string. Empty or omitted for leaf nodes. |
 | `prd_seed` | string | One sentence. Leaf only. Scopes exactly what the PRD must cover. Empty or omitted for branch nodes. |
 | `created` | date | YYYY-MM-DD |
 
@@ -311,15 +311,15 @@ The specify step writes this file for leaf nodes after discovery classifies them
 
 ```markdown
 ---
-predicate: "the falsifiable condition from predicate.md"
+predicate: "the verifiable condition from predicate.md"
 created: YYYY-MM-DD
 ---
 
 ## Acceptance Criteria
 
-- AC1: <falsifiable criterion that maps to a deliverable>
-- AC2: <falsifiable criterion that maps to a deliverable>
-- AC3: <falsifiable criterion>
+- AC1: <verifiable criterion that maps to a deliverable>
+- AC2: <verifiable criterion that maps to a deliverable>
+- AC3: <verifiable criterion>
 
 ## Out of Scope
 
@@ -338,7 +338,7 @@ created: YYYY-MM-DD
 |---|---|---|
 | `predicate` | string | Copied exactly from the node's `predicate.md`. Must match. |
 | `created` | date | YYYY-MM-DD |
-| Acceptance Criteria | list | Each criterion is falsifiable — you can unambiguously say "yes" or "no". Each maps to at least one deliverable in the eventual plan. |
+| Acceptance Criteria | list | Each criterion is verifiable — you can unambiguously say "yes" or "no". Each maps to at least one deliverable in the eventual plan. |
 | Out of Scope | list | Items explicitly excluded. `/fractal:review` checks for violations. |
 | Constraints | list | Technical or design constraints that deliverables must respect. |
 

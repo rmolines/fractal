@@ -1,4 +1,4 @@
-# The OpenPredicaTree Law
+# The Fractal Law
 
 ## The primitive
 
@@ -69,7 +69,7 @@ The cycle is internal to the primitive. From the tree's perspective: one node, o
 Precondition of the primitive. Before the first `fractal()` call, the agent invests maximum energy in:
 1. Uncovering the real goal behind the request (the human may not know what they want)
 2. Anticipating the "reality check" — when the human will discover they wanted something else
-3. Making the goal falsifiable — a concrete condition that proves it was reached
+3. Making the goal verifiable — a concrete condition that proves it was reached
 
 Without a clear goal, the recursion has no base case.
 
@@ -85,7 +85,7 @@ Rejection on proposal → agent proposes another predicate. Rejection on result 
 
 The mechanism that drives the branching decisions in the primitive. An evaluate subagent receives a predicate and the full repo context. It answers one question: "Is this a branch (composite — satisfied by children) or a leaf (executable — satisfied by a sprint)?"
 
-For branches: the evaluator proposes 2-5 candidate child predicates that together cover the parent. Each candidate is independently falsifiable.
+For branches: the evaluator proposes 2-5 candidate child predicates that together cover the parent. Each candidate is independently verifiable.
 
 For leaves: the evaluator provides a `prd_seed` — one-sentence scope for the PRD that will be written in the specify step.
 
@@ -93,15 +93,15 @@ Its output is persisted as `discovery.md` before routing. The fractal skill read
 
 ## Definitions
 
-**Predicate:** a falsifiable condition that, when satisfied, constitutes progress toward the parent predicate. Not a task — a truth to be reached. Action emerges from the predicate.
+**Predicate:** a condition that, when satisfied, constitutes progress toward the parent predicate. Not a task — a truth to be reached. Action emerges from the predicate. Predicates come in two kinds depending on how satisfaction is judged:
 
-**Predicate tree:** the persistent structure of the project. Each node is a predicate with: falsifiable condition, status (pending | satisfied | pruned), children. The tree is the plan, the log, and the state — simultaneously.
+**Verifiable predicate (leaf):** a predicate whose satisfaction can be confirmed objectively — by running a test, observing output, or checking a concrete condition. Base case of the recursion. Scope is clear enough that a PRD can be written and a sprint executed against it. Never has children.
 
-**Root predicate:** the goal extracted from the human. It sits in the useful abstraction window — specific enough to reject irrelevant steps, abstract enough to survive implementation changes.
+**Satisfiable predicate (branch):** a predicate whose satisfaction is judged by the human. The human decides when the composition of children is "enough." There is no binary test — the human exercises bounded judgment over the whole. Never has `prd.md`, `plan.md`, or other sprint artifacts. Its truth is derived from its parts, but the derivation is a human call.
 
-**Leaf predicate:** a predicate whose scope is clear enough that a PRD can be written and a sprint executed against it. Base case of the recursion. Never has children.
+**Predicate tree:** the persistent structure of the project. Each node is a predicate with: condition, status (pending | satisfied | pruned), children. The tree is the plan, the log, and the state — simultaneously. Branches are satisfiable; leaves are verifiable. The algebra is closed — both are predicates.
 
-**Branch predicate:** a predicate satisfied when all its children are satisfied. Never has `prd.md`, `plan.md`, or other sprint artifacts. It is a composite — its truth is derived from its parts.
+**Root predicate:** the goal extracted from the human. It sits in the useful abstraction window — specific enough to reject irrelevant steps, abstract enough to survive implementation changes. Always satisfiable (the human judges when the goal is reached).
 
 **Discovery:** the formalized evaluation phase. The evaluator examines a predicate, classifies it as branch or leaf, and produces `discovery.md`. This happens once per node. The presence of `discovery.md` indicates the node has been classified.
 
@@ -129,9 +129,22 @@ The predicate determines the executor. Abstract predicates → more capable mode
 
 ## Predicate formulation
 
+### Verifiable vs. satisfiable — the core distinction
+
+The predicate tree has two kinds of nodes, distinguished by how satisfaction is judged:
+
+| | **Verifiable (leaf)** | **Satisfiable (branch)** |
+|---|---|---|
+| **Judged by** | The world (tests, observable output) | The human (bounded judgment) |
+| **Criterion** | Binary — passes or fails | Compositional — "enough" children satisfied |
+| **Artifacts** | prd.md → plan.md → results.md | None — truth derived from children |
+| **Prior art** | Popper's falsifiability; NFR hardgoal | Simon's satisficing; NFR softgoal |
+
+This is not a limitation — it is the design. Branches cannot be objectively verified because they exist at a level of abstraction where the human's judgment is the only valid oracle. Leaves can and must be verified because they are concrete enough for the world to confirm.
+
 ### Functional vs. technical predicates
 
-There are two kinds of predicates at the leaf level:
+Within verifiable (leaf) predicates, there are two sub-kinds:
 
 **Functional predicates** — describe observable behavior from the user's perspective.
 Example: "user asks about fleet distribution and gets a correct, routed answer."
@@ -146,8 +159,8 @@ Functional predicates are preferred at the leaf level because the human validate
 When a technical predicate surfaces as a leaf, it is almost always a child of an unstated functional predicate. The correct structure is:
 
 ```
-[functional parent — human validates]
-  └── [technical child — auto-validated by tests or observable output]
+[functional parent — human validates (satisfiable)]
+  └── [technical child — auto-validated by tests (verifiable)]
 ```
 
 Example:

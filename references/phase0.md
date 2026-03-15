@@ -78,7 +78,7 @@ decision in notes.
 
 After crystallization and any investigation:
 
-1. Converge on a falsifiable predicate in the **useful zone of abstraction**:
+1. Converge on a verifiable predicate in the **useful zone of abstraction**:
    - Too abstract ("facilitate urban mobility") → won't discriminate
    - Useful ("app showing bike lanes in real time for cyclists in SP") → rejects irrelevant, survives changes
    - Too concrete ("PWA with Mapbox GL + CET API layer") → rigid plan disguised as objective
