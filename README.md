@@ -2,82 +2,80 @@
 
 One recursive operation. Predicates, not tasks.
 
-You open a new project. You write a plan. Three days later the plan is wrong, the
-doc is stale, and you're maintaining two sources of truth — the actual code and the
-document that explains what the code was supposed to be.
+You start a project. You write a plan. Three days in, the plan is wrong, the doc
+is stale, and you're keeping two sources of truth in sync — the code and the
+document describing what the code was supposed to do.
 
-Fractal is a Claude Code plugin that replaces planning hierarchies with a single
-recursive operation. There is no separate plan, no roadmap doc, no task board. The
-predicate tree living in `.fractal/` is the plan, the log, and the state —
-simultaneously. `ls` shows the tree. `cat` shows the state. When a session dies and
-a new one starts, the agent reads the filesystem and knows exactly where to continue.
+OpenPredicate is a Claude Code plugin. Instead of a plan that rots, it keeps a
+tree of predicates in `.fractal/`. Each predicate is a falsifiable condition — a
+truth to reach, not a task to check off. The tree doubles as plan, log, and
+session state. `ls` shows the structure. `cat` shows where you are. When a session
+dies and a new one starts, the agent reads the directory and picks up where it
+left off.
 
 ## How is this different?
 
-Most agentic planning tools decompose projects into tasks: PRD → epic → task → subtask.
-Task Master, CCPM, and BMAD all work this way — fixed hierarchy, linear lifecycle,
-state stored in JSON or GitHub Issues.
+Most planning tools for coding agents decompose work into tasks: PRD → epic →
+task → subtask. Task Master, CCPM, and BMAD work this way. Fixed hierarchy,
+linear lifecycle, state in JSON or GitHub Issues.
 
-OpenPredicate makes four different bets:
+OpenPredicate makes different bets:
 
-| Design choice | Others | OpenPredicate |
+| | Others | OpenPredicate |
 |---|---|---|
 | Unit of work | Task (action to complete) | Predicate (truth to reach) |
-| Decomposition | Upfront, full project | Lazy — one child at a time |
-| State store | JSON / database / GitHub Issues | The filesystem itself |
-| Failed path | Error or stale task | Prune → re-evaluate parent → new direction |
+| Decomposition | Upfront, full project | One child at a time |
+| State | JSON / database / Issues | Filesystem |
+| Failed path | Error or stale task | Prune, re-evaluate parent, try another path |
 
-The predicate distinction matters: "implement auth" is a task; "users can authenticate
-with Google" is a predicate. Predicates compose — satisfying a child constitutes
-progress toward the parent by definition, with no tracking mechanism needed. And
-because the tree grows one node at a time with a parent re-evaluation after each,
-the plan stays honest without a separate review phase.
+"Implement auth" is a task. "Users can sign in with Google" is a predicate.
+The difference: when you satisfy a child predicate, that is progress toward
+the parent by definition. No tracking layer needed. And because the tree grows
+one node at a time — re-evaluating the parent after each — the plan can't drift from reality.
 
 ## What it looks like
 
 ```
 $ /fractal add stripe billing to the app
 
-> Before I create the predicate — do you need one-time payments,
-> recurring subscriptions, or both?
+> Before I write the predicate — one-time payments, subscriptions, or both?
 
-Both. Monthly plans and per-seat pricing.
+Both. Monthly plans, per-seat pricing.
 
-> Predicate: "Users can subscribe to a monthly plan and be billed
-> per seat via Stripe, with plan changes taking effect immediately."
-> Shall I create the node and start decomposition?
+> Predicate: "Users can subscribe to a monthly plan and be billed per seat
+> via Stripe, with changes taking effect immediately."
+> Create the node?
 
 Yes.
 
 > Created .fractal/stripe-billing/predicate.md
-> Proposing first child: "Stripe customer is created on signup and
-> linked to the user record." Starting there.
+> First child: "Stripe customer created on signup and linked to user record."
+> Starting there.
 
 ------- next day -------
 
 $ /fractal
 
 > Reading .fractal/stripe-billing/ ...
-> Active node: webhook-handler — plan.md exists, results.md missing.
-> Picking up at delivery. Running subagents now.
+> Active node: webhook-handler — plan.md exists, no results.md.
+> Picking up at delivery.
 ```
 
 ## The operation
 
-One function, applied at any scale:
+One function. Works at any scale.
 
 ```
 fractal(predicate):
   if unachievable        → prune
   if a try can satisfy   → try → human validates
   if a cycle can satisfy → planning → delivery → review → ship → human validates
-  else                   → propose one child predicate → human validates → recurse
+  else                   → pick one child predicate → human validates → recurse
 ```
 
-That is the entire methodology. A predicate is a falsifiable condition — not a task,
-not a user story, but a truth to be reached. The tree grows one node at a time. After
-a child is satisfied, the parent is re-evaluated. Discovery is not a phase; it is the
-recursion itself.
+A predicate is a falsifiable condition. The tree grows one node at a time. After
+a child is satisfied, the parent gets re-evaluated — maybe it's done, maybe it
+needs another child. Discovery isn't a separate phase. It's the recursion.
 
 ## Install
 
@@ -85,7 +83,7 @@ recursion itself.
 git clone https://github.com/rmolines/openpredicate ~/git/openpredicate
 ```
 
-Add this to `~/.claude/marketplace.json` (create the file if it doesn't exist):
+Add to `~/.claude/marketplace.json` (create it if missing):
 
 ```json
 {
@@ -93,78 +91,77 @@ Add this to `~/.claude/marketplace.json` (create the file if it doesn't exist):
 }
 ```
 
-If the file already exists, add `{"path": "~/git/openpredicate"}` to the existing `plugins` array.
+If the file exists, add `{"path": "~/git/openpredicate"}` to the `plugins` array.
 
-Start a new Claude Code session (exit and run `claude` again). The `/fractal` skills will be available in any repo.
+Start a new session (quit and run `claude` again). `/fractal` will be available
+in any repo.
 
-Commands use the `/fractal` prefix — named after the recursive operation at its core.
+Commands use the `/fractal` prefix — after the recursive operation at its core.
 
 ## Skills
 
-You only need one command: `/fractal`. It orchestrates everything else.
+You need one command: `/fractal`. It handles the rest.
 
-**You use:**
-
-| Skill | What it does |
-|---|---|
-| `/fractal` | Entry point — extracts the root predicate, creates the tree, or resumes from the active node. |
-| `/fractal:try` | Fast path for simple predicates. Implements in an isolated worktree, shows diff, approve or discard. |
-| `/fractal:view` | Generates an HTML dashboard of the predicate tree and opens it in the browser. |
-
-**Runs internally** (called by `/fractal` when needed):
+**You run:**
 
 | Skill | What it does |
 |---|---|
-| `/fractal:planning` | Turns a predicate into an executable plan with parallel deliverables and a DAG. |
-| `/fractal:delivery` | Orchestrates subagents in parallel batches against the plan. Hard gate: baseline must pass first. |
-| `/fractal:review` | Spawns an independent evaluator that checks the diff against the predicate. Four outcomes: approved, back to delivery, back to planning, back to fractal. |
-| `/fractal:ship` | PR + CI + deploy + simplify + docs + cleanup. Marks predicate as satisfied. |
+| `/fractal` | Start a new objective or resume the active one. Orchestrates planning, delivery, review, and shipping. |
+| `/fractal:try` | Quick path for simple predicates. Runs in an isolated worktree — approve or discard. |
+| `/fractal:view` | Opens an HTML dashboard of the predicate tree in the browser. |
+
+**Run internally** (called by `/fractal`):
+
+| Skill | What it does |
+|---|---|
+| `/fractal:planning` | Turns a predicate into a plan with deliverables and a dependency graph. |
+| `/fractal:delivery` | Runs subagents in parallel against the plan. |
+| `/fractal:review` | Independent check of the diff against the predicate. Can send work back. |
+| `/fractal:ship` | PR, CI, deploy, cleanup. Marks the predicate satisfied. |
 
 ## The tree
 
-Every directory under `.fractal/` is a predicate node. Artifacts inside the directory
-tell the agent what happened and what to do next — no explicit state is stored.
+Every directory under `.fractal/` is a node. Which files exist tells the agent
+what happened and what comes next.
 
 ```
 .fractal/
-  cycling-map/                 # tree (one objective)
-    root.md                    # root predicate + active_node pointer
-    data-layer/                # child predicate
-      predicate.md             # falsifiable condition, status, notes
-      plan.md                  # created by /fractal:planning
-      results.md               # created by /fractal:delivery
-      review.md                # created by /fractal:review
-      geojson-endpoint/        # grandchild (data-layer was subdivided)
-        predicate.md
-    map-render/                # sibling predicate
+  stripe-billing/
+    root.md                    # root predicate + pointer to active node
+    customer-setup/
+      predicate.md             # the condition to satisfy
+      plan.md                  # from /fractal:planning
+      results.md               # from /fractal:delivery
+      review.md                # from /fractal:review
+    webhook-handler/
+      predicate.md
+    pricing-page/
       predicate.md
 ```
 
-The agent derives execution state from which files exist:
-
 | Files present | State |
 |---|---|
-| `predicate.md` only | Not started — evaluate: try, cycle, or subdivide |
-| `plan.md` exists | Planned — run delivery |
+| `predicate.md` only | Not started |
+| `plan.md` | Planned — run delivery |
 | `plan.md` + `results.md` | Executed — run review |
-| `plan.md` + `results.md` + `review.md` | Reviewed — human validates, then ship |
+| `plan.md` + `results.md` + `review.md` | Reviewed — validate, then ship |
 | `status: satisfied` in frontmatter | Done — re-evaluate parent |
 
-A new session reads the filesystem and picks up exactly where the last one stopped.
+New session reads the tree and continues where the last one stopped.
 
 ## The predicate window
 
-Every predicate lives in a useful zone of abstraction:
+Every predicate should sit in a useful zone of abstraction:
 
 ```
-Too abstract:  "improve the product"         → accepts everything, discriminates nothing
-Useful zone:   "cycling map for SP commuters" → rejects irrelevant, survives stack changes
-Too concrete:  "PWA with Mapbox GL + CET API" → a plan disguised as an objective
+Too abstract:  "improve the product"         → accepts anything
+Useful:        "billing via Stripe for SaaS"  → rejects irrelevant work, survives stack changes
+Too concrete:  "Stripe.js v3 + webhooks"      → a plan disguised as a goal
 ```
 
-If the entire tech stack changed tomorrow and the predicate still made sense, it's in
-the right zone.
+If you swapped the entire stack and the predicate still made sense, it's in the
+right zone.
 
 ## Full spec
 
-[LAW.md](./LAW.md) — the complete specification, in dense form.
+[LAW.md](./LAW.md) — the complete spec.
