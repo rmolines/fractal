@@ -2,193 +2,193 @@
 
 ## The Problem
 
-Frameworks de planejamento para agentes de código impõem taxonomias rígidas com lifecycles fixos. Na prática: planos quebram no contato com a realidade, hierarquias são arbitrárias, e artefatos ficam stale entre sessões.
+Planning frameworks for code agents impose rigid taxonomies with fixed lifecycles. In practice: plans break on contact with reality, hierarchies are arbitrary, and artifacts go stale between sessions.
 
-O Launchpad (framework anterior) impunha mission → stage → module com lifecycle discovery → planning → delivery → review → ship. Funcionava, mas a hierarquia era arbitrária e o plano era contrato que não se adaptava.
+Launchpad (the previous framework) imposed mission → stage → module with a discovery → planning → delivery → review → ship lifecycle. It worked, but the hierarchy was arbitrary and the plan was a contract that couldn't adapt.
 
-**Condição de sucesso:** uma única operação recursiva que funciona identicamente em qualquer escala, de "criar um app" a "implementar essa função", onde o plano nunca fica stale porque não existe plano — existe só o próximo predicado.
+**Success condition:** a single recursive operation that works identically at any scale, from "build an app" to "implement this function", where the plan never goes stale because there is no plan — only the next predicate.
 
 ---
 
-## A Primitiva
+## The Primitive
 
-### Operação fundamental
-
-```
-// ponto de entrada
-predicado_raiz ← extrair_objetivo(humano)  // pré-condição, não parte da primitiva
-arbol(predicado_raiz)
-
-arbol(predicado):
-  se inatingível(predicado):
-    podar(predicado)
-    retorna podado
-
-  senão se try_consegue_satisfazer(predicado):
-    try(predicado)
-    humano valida → satisfeito | arbol(predicado)
-
-  senão se ciclo_consegue_satisfazer(predicado):
-    ciclo(predicado)  // discovery → delivery → review → ship
-    humano valida → satisfeito | arbol(predicado)
-
-  senão:
-    // escolhe o sub-predicado que, satisfeito, mais reduz a incerteza
-    // sobre como satisfazer o pai — não o mais fácil, nem o mais
-    // importante, mas o que mais clarifica o caminho
-    filho ← propor sub-predicado
-    humano valida proposta:
-      se aceita → arbol(filho), depois arbol(predicado)
-      se rejeita → arbol(predicado)  // propõe outro filho
-```
-
-A operação é fractal — auto-similar em qualquer escala. Mesma estrutura, diferentes constantes de tempo.
-
-A árvore cresce lazy — um filho por vez. Depois de satisfazer um filho, o pai é re-avaliado: talvez já seja satisfazível, talvez precise de outro filho. A re-avaliação decide.
-
-### Árvore de predicados, não de tarefas
-
-**O agente não define passos atômicos — define predicados atômicos.** A árvore inteira é uma árvore de predicados falsificáveis. Ações emergem dos predicados: "o que preciso fazer pra tornar este predicado verdadeiro?"
+### Fundamental operation
 
 ```
-Predicado raiz: "ciclistas em SP conseguem ver ciclofaixas em tempo real no celular"
-  └─ Predicado filho 1: "dados de ciclofaixas da CET estão acessíveis via API"
-      └─ Predicado atômico: "endpoint /api/lanes retorna GeoJSON válido"
-  └─ Predicado filho 2: "mapa renderiza com camada de ciclofaixas"
-  └─ Predicado filho 3: "app funciona offline no celular"
+// entry point
+root_predicate ← extract_goal(human)  // precondition, not part of the primitive
+arbol(root_predicate)
+
+arbol(predicate):
+  if is_unachievable(predicate):
+    prune(predicate)
+    return pruned
+
+  else if try_can_satisfy(predicate):
+    try(predicate)
+    human validates → satisfied | arbol(predicate)
+
+  else if cycle_can_satisfy(predicate):
+    cycle(predicate)  // discovery → delivery → review → ship
+    human validates → satisfied | arbol(predicate)
+
+  else:
+    // pick the sub-predicate that, once satisfied, reduces the most uncertainty
+    // about how to satisfy the parent — not the easiest, not the most
+    // important, but the one that best clarifies the path forward
+    child ← propose_sub_predicate
+    human validates proposal:
+      if accepted → arbol(child), then arbol(predicate)
+      if rejected → arbol(predicate)  // propose another child
+```
+
+The operation is fractal — self-similar at any scale. Same structure, different time constants.
+
+The tree grows lazy — one child at a time. After a child is satisfied, the parent is re-evaluated: maybe it's now satisfiable, maybe it needs another child. The re-evaluation decides.
+
+### Predicate tree, not task tree
+
+**The agent does not define atomic steps — it defines atomic predicates.** The entire tree is a tree of falsifiable predicates. Actions emerge from predicates: "what do I need to do to make this predicate true?"
+
+```
+Root predicate: "cyclists in São Paulo can see bike lanes in real time on their phones"
+  └─ Child predicate 1: "CET bike lane data is accessible via API"
+      └─ Atomic predicate: "endpoint /api/lanes returns valid GeoJSON"
+  └─ Child predicate 2: "map renders with a bike lane layer"
+  └─ Child predicate 3: "app works offline on mobile"
 ```
 
 ### Closure property
 
-Cada nível da árvore herda o mesmo tipo (predicado falsificável). Satisfação do filho contribui pra satisfação do pai. A álgebra é fechada por construção — não precisa de mecanismo extra de composição.
+Each level of the tree inherits the same type (falsifiable predicate). Satisfying a child contributes to satisfying the parent. The algebra is closed by construction — no extra composition mechanism needed.
 
 ---
 
-## Extração do objetivo
+## Goal extraction
 
-Pré-condição da primitiva, não parte dela. Antes da primeira chamada `arbol()`, o agente investe energia máxima em:
-1. Descobrir o objetivo real por trás do pedido (Socratic extraction)
-2. Antecipar o "cair na real" — quando o humano vai descobrir que queria outra coisa
-3. Tornar o objetivo falsificável — condição concreta que prova que foi atingido
+Precondition of the primitive, not part of it. Before the first `arbol()` call, the agent invests maximum energy in:
+1. Uncovering the real goal behind the request (Socratic extraction)
+2. Anticipating the "reality check" — when the human will discover they wanted something else
+3. Making the goal falsifiable — a concrete condition that proves it was reached
 
-Sem objetivo claro → predicado não funciona → recursão não tem caso base → divergência (= AutoGPT).
+Without a clear goal → predicate breaks down → recursion has no base case → divergence (= AutoGPT).
 
-### Janela de abstração
+### Abstraction window
 
-O objetivo tem um nível ótimo de abstração:
+The goal has an optimal level of abstraction:
 
-- **Muito abstrato** ("facilitar mobilidade urbana") → zero poder discriminatório. Todo passo "serve". No limite, "ser feliz" é o objetivo de todo humano — mas não funciona como predicado.
-- **Zona útil** ("app que mostra ciclofaixas em tempo real pra ciclistas urbanos de SP") → rejeita passos irrelevantes, sobrevive a mudanças de implementação.
-- **Muito concreto** ("PWA com Mapbox GL + layer da CET") → plano rígido disfarçado de objetivo. Não sobrevive a mudança de premissa.
+- **Too abstract** ("improve urban mobility") → zero discriminating power. Every step "works". At the limit, "be happy" is every human's goal — but it doesn't function as a predicate.
+- **Useful zone** ("app that shows bike lanes in real time for urban cyclists in São Paulo") → rejects irrelevant steps, survives implementation changes.
+- **Too concrete** ("PWA with Mapbox GL + CET layer") → rigid plan disguised as a goal. Does not survive a change in premise.
 
-A zona útil é onde o objetivo tem **máximo poder de discriminação**. Na teoria da informação: o nível com maior entropia condicional útil. Teste: se toda a stack mudar, o predicado ainda faz sentido?
+The useful zone is where the goal has **maximum discriminating power**. In information theory terms: the level with the highest useful conditional entropy. Test: if the entire stack changes, does the predicate still make sense?
 
-### Resiliência a mutação
+### Resilience to mutation
 
-O sistema é reativo, não contratual. Se o objetivo raiz muda:
-- Cria-se um novo nó raiz na árvore
-- A árvore anterior persiste como histórico
-- A recursão recomeça do novo raiz
-- Nada se perde, e a profundidade se corrige
+The system is reactive, not contractual. If the root goal changes:
+- A new root node is created in the tree
+- The previous tree persists as history
+- The recursion restarts from the new root
+- Nothing is lost, and the depth corrects itself
 
-Estruturalmente idêntico ao MPC (Model Predictive Control): planeja N passos, commita 1, observa, replanteia.
-
----
-
-## Validação humana
-
-O humano é parte da primitiva, não obstáculo. Valida em dois momentos:
-- **Proposta:** o agente propõe um predicado, humano confirma que faz sentido e progride na direção correta
-- **Resultado:** o agente conclui que satisfez o predicado, humano confirma que foi de fato satisfeito
-
-Rejeição na proposta → agente propõe outro predicado. Rejeição no resultado → agente refaz a execução. Não são casos especiais — são re-avaliações naturais da primitiva.
-
-Quando o agente reconhece que um predicado é inatingível, ele poda o nó. Isso força re-avaliação no pai e geração de outro caminho.
+Structurally identical to MPC (Model Predictive Control): plan N steps, commit 1, observe, replan.
 
 ---
 
-## Dois modos de execução
+## Human validation
 
-O caso base tem dois modos, e o agente decide qual:
-- **Try:** predicados triviais. Implementa, valida, aprova ou descarta.
-- **Ciclo completo:** predicados complexos. Discovery → delivery → review → ship.
+The human is part of the primitive, not an obstacle. Validates at two moments:
+- **Proposal:** the agent proposes a predicate, the human confirms it makes sense and moves in the right direction
+- **Result:** the agent concludes it has satisfied the predicate, the human confirms it actually was
 
-O ciclo do Launchpad sobrevive como motor de execução no caso base. Arbol substitui a camada de planejamento/hierarquia (mission/stage/module), mas o ciclo de execução (discovery → delivery → review → ship) é a unidade atômica de trabalho para predicados complexos.
+Rejection on proposal → agent proposes another predicate. Rejection on result → agent redoes the execution. These are not special cases — they are natural re-evaluations of the primitive.
 
-Paralelismo (múltiplos subagentes) é estratégia interna do ciclo — aumenta a capacidade de satisfazer predicados maiores. Do ponto de vista da árvore, continua sendo um nó, um predicado, um resultado.
-
----
-
-## Persistência
-
-A árvore de predicados é a representação persistente em disco. Cada nó: predicado (condição falsificável), status (pendente | satisfeito | podado), filhos.
-
-Não existe "plano" separado. A árvore é o plano, o log e o estado. Existe sempre um e apenas um nó ativo — o predicado sendo trabalhado. Uma sessão nova lê a árvore, encontra o nó ativo, e continua. É o estado completo da sessão.
-
-Delegação muda o executor do nó, não cria nós paralelos.
+When the agent recognizes that a predicate is unachievable, it prunes the node. This forces re-evaluation at the parent and generation of another path.
 
 ---
 
-## Delegação por capacidade
+## Two execution modes
 
-- **Opus** nos níveis altos: predicados abstratos, decisões de arquitetura, extração de objetivo
-- **Sonnet** nos níveis médios: predicados técnicos, implementação com contexto
-- **Haiku** nos níveis baixos: predicados atômicos, execução direta
+The base case has two modes, and the agent decides which:
+- **Try:** trivial predicates. Implement, validate, approve or discard.
+- **Full cycle:** complex predicates. Discovery → delivery → review → ship.
 
-Critério de delegação: "quem consegue satisfazer este predicado?" É o único critério.
+The Launchpad cycle survives as the execution engine in the base case. Arbol replaces the planning/hierarchy layer (mission/stage/module), but the execution cycle (discovery → delivery → review → ship) is the atomic unit of work for complex predicates.
+
+Parallelism (multiple subagents) is an internal strategy of the cycle — it increases the capacity to satisfy larger predicates. From the tree's perspective, it is still one node, one predicate, one result.
 
 ---
 
-## Fundamentação teórica
+## Persistence
 
-### Convergência de 7 campos
+The predicate tree is the persistent on-disk representation. Each node: predicate (falsifiable condition), status (pending | satisfied | pruned), children.
 
-| Campo | Primitiva | Critério de subdivisão |
+There is no separate "plan". The tree is the plan, the log, and the state. There is always exactly one active node — the predicate currently being worked on. A new session reads the tree, finds the active node, and continues. It is the complete state of the session.
+
+Delegation changes the executor of the node, it does not create parallel nodes.
+
+---
+
+## Delegation by capability
+
+- **Opus** at the upper levels: abstract predicates, architecture decisions, goal extraction
+- **Sonnet** at the middle levels: technical predicates, implementation with context
+- **Haiku** at the lower levels: atomic predicates, direct execution
+
+Delegation criterion: "who can satisfy this predicate?" That is the only criterion.
+
+---
+
+## Theoretical grounding
+
+### Convergence across 7 fields
+
+| Field | Primitive | Subdivision criterion |
 |---|---|---|
-| AI Planning (HTN) | Task decomposition | Type check: primitivo ou composto |
-| Reinforcement Learning (Options) | Option ⟨I, π, β⟩ | Função β aprendida (termination condition) |
-| Teoria de Controle (MPC) | Receding horizon | Horizonte = constante de tempo dominante |
-| Teoria da Informação (MDL) | Partition | ΔH < custo de representar subdivisão |
-| CS teórico (Y combinator) | Fixed-point | Predicado no argumento, não profundidade |
-| Category Theory (F-algebras) | Initial algebra | Mesmo morfismo em todo nível (catamorphism) |
-| Estruturas espaciais (Quadtree) | Adaptive subdivision | Heterogeneidade interna da célula |
+| AI Planning (HTN) | Task decomposition | Type check: primitive or composite |
+| Reinforcement Learning (Options) | Option ⟨I, π, β⟩ | Learned β function (termination condition) |
+| Control Theory (MPC) | Receding horizon | Horizon = dominant time constant |
+| Information Theory (MDL) | Partition | ΔH < cost of representing the subdivision |
+| Theoretical CS (Y combinator) | Fixed-point | Predicate in the argument, not depth |
+| Category Theory (F-algebras) | Initial algebra | Same morphism at every level (catamorphism) |
+| Spatial structures (Quadtree) | Adaptive subdivision | Internal heterogeneity of the cell |
 
-### Trabalhos relacionados
+### Related work
 
-- **ADaPT** (Allen AI, NAACL 2024) — tenta executar → falha → decompõe → repete. +28% benchmarks. Mais próximo, mas sem HITL e com predicado binário.
-- **HyperTree Planning** (ICML 2025) — divide-and-conquer hierárquico, 3.6x vs o1-preview
-- **LADDER** (2025) — recursão que gera variantes mais fáceis, bootstraps upward
-- **"Learning When to Plan"** (2025) — frequência ótima de planning é task-dependent
-- **Option-Critic** (Bacon 2017) — terminação pode ser aprendida end-to-end
-- **Ralph Loop** (Huntley 2025) — loop flat com verificação externa = caso base da recursão
-- **Autoresearch** (Karpathy 2026) — loop flat com constraints rígidos = validação do caso base
+- **ADaPT** (Allen AI, NAACL 2024) — attempt → fail → decompose → repeat. +28% on benchmarks. Closest prior work, but no HITL and binary predicate.
+- **HyperTree Planning** (ICML 2025) — hierarchical divide-and-conquer, 3.6x vs o1-preview
+- **LADDER** (2025) — recursion that generates easier variants, bootstraps upward
+- **"Learning When to Plan"** (2025) — optimal planning frequency is task-dependent
+- **Option-Critic** (Bacon 2017) — termination can be learned end-to-end
+- **Ralph Loop** (Huntley 2025) — flat loop with external verification = base case of the recursion
+- **Autoresearch** (Karpathy 2026) — flat loop with hard constraints = base case validation
 
-### Insights matemáticos
+### Mathematical insights
 
-**Terminação é predicado, não profundidade.** A primitiva precisa de um único parâmetro: o predicado de atomicidade. Profundidade, branching factor, total de passos são consequência.
+**Termination is a predicate, not a depth.** The primitive needs a single parameter: the atomicity predicate. Depth, branching factor, total steps are consequences.
 
-**Dimensão fractal como consistency check.** Se a primitiva é auto-similar, o ratio sub-objetivos/passo deve ser ~constante. Desvio indica regra de decomposição não-uniforme.
+**Fractal dimension as a consistency check.** If the primitive is self-similar, the sub-goals/step ratio should be roughly constant. Deviation indicates a non-uniform decomposition rule.
 
-**Analogia com a teoria de tudo na física.** A primitiva unifica o planning, mas a complexidade não desaparece — migra para a extração e calibração do objetivo. O framework fica simples; o trabalho difícil muda de lugar.
+**Analogy to a theory of everything in physics.** The primitive unifies planning, but complexity doesn't disappear — it migrates to goal extraction and calibration. The framework becomes simple; the hard work moves elsewhere.
 
 ---
 
-## Risks resolvidos
+## Risks resolved
 
-| Risk | Resolução |
+| Risk | Resolution |
 |---|---|
-| Fundamento teórico | Convergência de 7+ campos independentes |
-| Implementação similar | ADaPT é o mais próximo, sem HITL/predicado gradual |
-| Caso base funciona? | Ralph Loop + Autoresearch validam empiricamente |
-| Calibração do agente | Aceito v1: confiar no agente, feedback loops naturais |
-| Closure property | Resolvido pelo design: árvore de predicados, álgebra fechada |
-| Custo | Otimização via dial conservador/agressivo + delegação de modelos |
-| Persistência | Árvore de predicados em disco é a source of truth |
+| Theoretical grounding | Convergence across 7+ independent fields |
+| Similar prior implementation | ADaPT is closest, without HITL/gradual predicate |
+| Does the base case work? | Ralph Loop + Autoresearch validate empirically |
+| Agent calibration | Accepted for v1: trust the agent, natural feedback loops |
+| Closure property | Resolved by design: predicate tree, closed algebra |
+| Cost | Optimization via conservative/aggressive dial + model delegation |
+| Persistence | Predicate tree on disk is the source of truth |
 
-## Próximos passos (implementação)
+## Next steps (implementation)
 
-- Formato concreto da árvore em disco
-- UX de visualização pro humano
-- Heurísticas de delegação por modelo
-- Integração com git, testes, CI
-- Primeiro protótipo: uma skill que opera com a primitiva
+- Concrete on-disk tree format
+- Visualization UX for the human
+- Model delegation heuristics
+- Integration with git, tests, CI
+- First prototype: a skill that operates with the primitive

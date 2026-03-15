@@ -1,113 +1,113 @@
-# A Lei do Fractal
+# The Fractal Law
 
-## A primitiva
+## The primitive
 
-Existe uma única operação que governa todo trabalho entre humano e agente:
-
-```
-// ponto de entrada
-predicado_raiz ← extrair_objetivo(humano)  // pré-condição, não parte da primitiva
-fractal(predicado_raiz)
-
-fractal(predicado):
-  // esta avaliação É discovery — o agente raciocinando sobre o predicado
-
-  se inatingível(predicado):
-    podar(predicado)
-    retorna podado
-
-  senão se try_consegue_satisfazer(predicado):
-    try(predicado)
-    humano valida → satisfeito | fractal(predicado)
-
-  senão se ciclo_consegue_satisfazer(predicado):
-    planning(predicado)
-    delivery(predicado)
-    review(predicado)
-    ship(predicado)
-    humano valida → satisfeito | fractal(predicado)
-
-  senão:
-    // gera 3-5 candidatos, escolhe o que mais reduz incerteza
-    // candidatos não-escolhidos persistem na hierarquia como hipóteses
-    // pras próximas rodadas de discovery
-    candidatos ← gerar sub-predicados(predicado)
-    filho ← selecionar melhor(candidatos)
-    persistir como candidato(candidatos - filho)
-    humano valida proposta:
-      se aceita → fractal(filho), depois fractal(predicado)
-      se rejeita → fractal(predicado)  // propõe outro ou promove candidato
-```
-
-Essa operação é fractal. Funciona identicamente em qualquer escala — de "criar uma empresa" a "renomear essa variável". Não existem tipos diferentes de planejamento. Existe uma operação, repetida.
-
-A árvore cresce lazy — um filho por vez. Depois de satisfazer um filho, o pai é re-avaliado: talvez já seja satisfazível, talvez precise de outro filho. A re-avaliação decide.
-
-### Mapeamento com o ciclo de execução
-
-- **Discovery** = a própria primitiva. Toda vez que `fractal()` roda, está fazendo discovery: avaliando o predicado, decidindo se é atômico ou precisa subdividir, propondo sub-predicados.
-- **Planning → Delivery → Review → Ship** = a unidade atômica de execução para predicados complexos. Satisfaz o predicado.
-- **Try** = atalho para predicados triviais demais pro ciclo completo.
-
-Discovery não é uma fase separada — é a recursão em si.
-
-### Extração do objetivo
-
-Pré-condição da primitiva. Antes da primeira chamada `fractal()`, o agente investe energia máxima em:
-1. Descobrir o verdadeiro objetivo por trás do pedido (o humano pode não saber o que quer)
-2. Antecipar o "cair na real" — quando o humano vai descobrir que queria outra coisa
-3. Tornar o objetivo falsificável — condição concreta que prova que foi atingido
-
-Sem objetivo claro, a recursão não tem caso base.
-
-### Validação humana
-
-O humano valida em dois momentos:
-- **Proposta:** o agente propõe um predicado, humano confirma que faz sentido e progride na direção correta
-- **Resultado:** o agente conclui que satisfez o predicado, humano confirma que foi de fato satisfeito
-
-Rejeição na proposta → agente propõe outro predicado. Rejeição no resultado → agente refaz a execução. Não são casos especiais — são re-avaliações naturais da primitiva.
-
-## Definições
-
-**Predicado:** uma condição falsificável que, quando satisfeita, constitui progresso em direção ao predicado pai. Não é uma tarefa — é uma verdade a ser alcançada. A ação emerge do predicado.
-
-**Árvore de predicados:** a estrutura persistente do projeto. Cada nó é um predicado com: condição falsificável, status (pendente | satisfeito | podado), filhos. A árvore é o plano, o log e o estado — simultaneamente.
-
-**Predicado raiz:** o objetivo extraído do humano. Está na zona útil de abstração — específico o suficiente para rejeitar passos irrelevantes, abstrato o suficiente para sobreviver a mudanças de implementação.
-
-**Predicado atômico:** aquele que um try ou um ciclo (planning → delivery → review → ship) consegue satisfazer diretamente. É o caso base da recursão.
-
-**Nó ativo:** existe sempre um e apenas um predicado sendo trabalhado por árvore. Uma sessão nova lê a árvore, encontra o nó ativo, e continua. É o estado completo da sessão.
-
-**Árvore:** um objetivo independente com sua própria raiz e nó ativo. Um repo pode conter múltiplas árvores em `.fractal/`, cada uma operando independentemente. Árvores não se referenciam.
-
-**Podado:** predicado que o agente reconheceu como inatingível. Permanente naquele nó, mas não mata o pai — força re-avaliação e geração de outro caminho.
-
-**Candidato:** sub-predicado hipotético gerado durante subdivisão mas não selecionado como filho ativo. Persiste na hierarquia para rodadas futuras de discovery. Não é validado pelo humano até ser promovido a pendente.
-
-## As regras
-
-### 1. O objetivo é o predicado
-Não existe plano separado do objetivo. O objetivo raiz é o primeiro predicado. Cada subdivisão gera predicados filhos que herdam o mesmo tipo. A álgebra é fechada.
-
-### 2. Reativo, não contratual
-Não existe plano como contrato. Se o objetivo raiz muda, cria-se um novo nó raiz na árvore. A árvore anterior persiste como histórico, mas a recursão recomeça do novo raiz. Nada se perde, e a profundidade se corrige.
-
-### 3. Um nó ativo por árvore
-Cada árvore tem exatamente um predicado sendo trabalhado. Um repo pode ter múltiplas árvores independentes. Delegação muda o executor do nó, não cria nós paralelos. Paralelismo é otimização interna do ciclo de execução.
-
-### 4. Delegação por capacidade
-O predicado determina o executor. Predicados abstratos → modelo mais capaz. Predicados atômicos → modelo mais barato. "Quem consegue satisfazer este predicado?" é o único critério.
-
-## A janela de abstração
-
-Todo predicado — incluindo o raiz — deve estar na zona de máximo poder de discriminação:
+There is a single operation governing all work between human and agent:
 
 ```
-Muito abstrato:  "ser feliz"                    → aceita tudo, não discrimina
-Zona útil:       "app de ciclofaixas em SP"      → rejeita irrelevantes, sobrevive a mudanças
-Muito concreto:  "PWA com Mapbox + API da CET"   → plano rígido disfarçado de objetivo
+// entry point
+root_predicate ← extract_goal(human)  // precondition, not part of the primitive
+fractal(root_predicate)
+
+fractal(predicate):
+  // this evaluation IS discovery — the agent reasoning about the predicate
+
+  if is_unachievable(predicate):
+    prune(predicate)
+    return pruned
+
+  else if try_can_satisfy(predicate):
+    try(predicate)
+    human validates → satisfied | fractal(predicate)
+
+  else if cycle_can_satisfy(predicate):
+    planning(predicate)
+    delivery(predicate)
+    review(predicate)
+    ship(predicate)
+    human validates → satisfied | fractal(predicate)
+
+  else:
+    // generate 3-5 candidates, pick the one that reduces uncertainty most
+    // unchosen candidates persist in the hierarchy as hypotheses
+    // for future discovery rounds
+    candidates ← generate_sub_predicates(predicate)
+    child ← select_best(candidates)
+    persist_as_candidates(candidates - child)
+    human validates proposal:
+      if accepted → fractal(child), then fractal(predicate)
+      if rejected → fractal(predicate)  // propose another or promote a candidate
 ```
 
-Um predicado na zona útil é aquele que, se toda a stack mudar, ainda faz sentido.
+This operation is fractal. It works identically at any scale — from "build a company" to "rename this variable". There are no different kinds of planning. There is one operation, repeated.
+
+The tree grows lazy — one child at a time. After a child is satisfied, the parent is re-evaluated: maybe it's now satisfiable, maybe it needs another child. The re-evaluation decides.
+
+### Mapping to the execution cycle
+
+- **Discovery** = the primitive itself. Every time `fractal()` runs, it is doing discovery: evaluating the predicate, deciding whether it's atomic or needs subdivision, proposing sub-predicates.
+- **Planning → Delivery → Review → Ship** = the atomic execution unit for complex predicates. Satisfies the predicate.
+- **Try** = shortcut for predicates too trivial for the full cycle.
+
+Discovery is not a separate phase — it is the recursion itself.
+
+### Goal extraction
+
+Precondition of the primitive. Before the first `fractal()` call, the agent invests maximum energy in:
+1. Uncovering the real goal behind the request (the human may not know what they want)
+2. Anticipating the "reality check" — when the human will discover they wanted something else
+3. Making the goal falsifiable — a concrete condition that proves it was reached
+
+Without a clear goal, the recursion has no base case.
+
+### Human validation
+
+The human validates at two moments:
+- **Proposal:** the agent proposes a predicate, the human confirms it makes sense and moves in the right direction
+- **Result:** the agent concludes it has satisfied the predicate, the human confirms it actually was
+
+Rejection on proposal → agent proposes another predicate. Rejection on result → agent redoes the execution. These are not special cases — they are natural re-evaluations of the primitive.
+
+## Definitions
+
+**Predicate:** a falsifiable condition that, when satisfied, constitutes progress toward the parent predicate. Not a task — a truth to be reached. Action emerges from the predicate.
+
+**Predicate tree:** the persistent structure of the project. Each node is a predicate with: falsifiable condition, status (pending | satisfied | pruned), children. The tree is the plan, the log, and the state — simultaneously.
+
+**Root predicate:** the goal extracted from the human. It sits in the useful abstraction window — specific enough to reject irrelevant steps, abstract enough to survive implementation changes.
+
+**Atomic predicate:** one that a try or a full cycle (planning → delivery → review → ship) can satisfy directly. It is the base case of the recursion.
+
+**Active node:** there is always exactly one predicate being worked on per tree. A new session reads the tree, finds the active node, and continues. It is the complete state of the session.
+
+**Tree:** an independent goal with its own root and active node. A repo can contain multiple trees in `.fractal/`, each operating independently. Trees do not reference each other.
+
+**Pruned:** a predicate the agent recognized as unachievable. Permanent at that node, but does not kill the parent — it forces re-evaluation and generation of another path.
+
+**Candidate:** a hypothetical sub-predicate generated during subdivision but not selected as the active child. Persists in the hierarchy for future discovery rounds. Not validated by the human until promoted to pending.
+
+## The rules
+
+### 1. The goal is the predicate
+There is no plan separate from the goal. The root goal is the first predicate. Each subdivision generates child predicates that inherit the same type. The algebra is closed.
+
+### 2. Reactive, not contractual
+There is no plan as contract. If the root goal changes, a new root node is created in the tree. The previous tree persists as history, but the recursion restarts from the new root. Nothing is lost, and the depth corrects itself.
+
+### 3. One active node per tree
+Each tree has exactly one predicate being worked on. A repo can have multiple independent trees. Delegation changes the executor of the node, it does not create parallel nodes. Parallelism is internal optimization of the execution cycle.
+
+### 4. Delegation by capability
+The predicate determines the executor. Abstract predicates → more capable model. Atomic predicates → cheaper model. "Who can satisfy this predicate?" is the only criterion.
+
+## The abstraction window
+
+Every predicate — including the root — must sit in the zone of maximum discriminating power:
+
+```
+Too abstract:  "be happy"                        → accepts everything, discriminates nothing
+Useful zone:   "bike lane app for São Paulo"     → rejects irrelevant, survives changes
+Too concrete:  "PWA with Mapbox + CET API"       → rigid plan disguised as a goal
+```
+
+A predicate in the useful zone is one that still makes sense even if the entire stack changes.
