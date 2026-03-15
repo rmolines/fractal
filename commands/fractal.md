@@ -235,7 +235,7 @@ Previous roots are recorded here when the objective mutates.
 ```markdown
 ---
 predicate: "the falsifiable condition for this node"
-status: pending | satisfied | pruned
+status: pending | satisfied | pruned | candidate
 created: 2026-03-14
 ---
 
@@ -243,6 +243,11 @@ created: 2026-03-14
 
 Context from execution: what was tried, what was learned, why decisions were made.
 ```
+
+**Status `candidate`:** hypothetical sub-predicates generated during subdivision but not
+selected as the active child. They persist in the hierarchy for future discovery rounds.
+A candidate is NOT human-validated — it's the agent's hypothesis. When the parent is
+re-evaluated, existing candidates are read before proposing new sub-predicates.
 
 ### Deriving execution state from artifacts
 
@@ -258,6 +263,7 @@ artifacts exist in the directory:
 | `plan.md` + `results.md` + `review.md` | Reviewed | HITL validate, then ship or redo |
 | `status: satisfied` in frontmatter | Satisfied | Move to parent |
 | `status: pruned` in frontmatter | Pruned | Move to parent |
+| `status: candidate` in frontmatter | Candidate | Skip — hypothetical, not yet human-validated |
 
 This means a new session can always determine exactly where execution stopped by
 reading the filesystem. Zero stale state.
@@ -342,37 +348,94 @@ After cycle completes → ask user to validate the predicate was satisfied.
 **Check 4: None of the above → subdivide**
 The predicate is too large or uncertain. This is discovery at this level of the tree.
 
-**Step 1 — Understand why it can't be executed directly:**
-- Too much scope? → decompose into independent sub-predicates
-- Too much uncertainty? → propose an investigation sub-predicate first (research, spike, mockup)
-- Missing information? → propose a sub-predicate that acquires the information
+**Step 0 — Check for existing candidates:**
 
-**Step 2 — Choose the sub-predicate:**
+Before generating new sub-predicates, scan child directories for `status: candidate`:
+
+```bash
+# Find candidate children in the current node directory
+CANDIDATES=$(find "$NODE_DIR" -maxdepth 2 -name "predicate.md" -exec \
+  grep -l "^status: candidate" {} \; 2>/dev/null)
+```
+
+If candidates exist, read them. They represent hypotheses from previous subdivision
+rounds. Consider whether any of them is now the right next child — context may have
+changed since they were generated (siblings satisfied, learnings accumulated).
+
+**Step 1 — Generate candidate sub-predicates (3–5):**
+
+Think about why the predicate can't be executed directly:
+- Too much scope? → decompose into independent sub-predicates
+- Too much uncertainty? → propose investigation sub-predicates (research, spike, mockup)
+- Missing information? → propose sub-predicates that acquire the information
+
+Generate **3–5 candidate sub-predicates**, each with:
+- A falsifiable predicate statement
+- The type (scope decomposition | risk investigation | information acquisition)
+- Why it would reduce uncertainty about the parent
+
+**Step 2 — Select the best candidate:**
 
 > Choose the sub-predicate that, once satisfied, most reduces uncertainty about how to
 > satisfy the parent. Not the easiest. Not the most important. The one that most
 > clarifies the path.
 
 Use risk identification to guide the choice:
-- If there's a UX risk → the first sub-predicate might be a mockup validation
-- If there's a technical risk → the first sub-predicate might be a spike
-- If scope is clear but large → decompose into the smallest valuable slice
+- If there's a UX risk → prioritize mockup validation
+- If there's a technical risk → prioritize a spike
+- If scope is clear but large → pick the smallest valuable slice
 
 **Step 3 — Present to the user:**
 ```
 O predicado "<parent>" é grande demais pra um ciclo.
 
-Proponho este sub-predicado: "<child predicate>"
+Candidatos que considerei:
+1. ✦ "<selected predicate>" — <why this one most reduces uncertainty>
+2.   "<candidate 2>" — <brief rationale>
+3.   "<candidate 3>" — <brief rationale>
+[4-5 if generated]
 
-Motivo: <why this child most reduces uncertainty>
-Tipo: <scope decomposition | risk investigation | information acquisition>
-
-Aceita?
+Recomendo o #1. Aceita, ou prefere outro?
 ```
 
-If accepted → create child directory with `predicate.md`, update `active_node` in
-`root.md` to the new child path. Run the primitive on the new child.
-If rejected → propose a different sub-predicate.
+**Step 4 — Persist all candidates:**
+
+When the user accepts (or picks a different candidate):
+
+- **Selected candidate:** create child directory with `predicate.md` (`status: pending`),
+  update `active_node` in `root.md`. Run the primitive on the new child.
+- **Non-selected candidates:** create their directories with `predicate.md`
+  (`status: candidate`). These persist in the hierarchy for future discovery rounds.
+
+```bash
+# For each non-selected candidate:
+CANDIDATE_DIR="$NODE_DIR/<candidate-slug>"
+mkdir -p "$CANDIDATE_DIR"
+```
+
+```markdown
+---
+predicate: "<the candidate predicate>"
+status: candidate
+created: <date>
+proposed_by: agent
+rationale: "<why this was considered>"
+---
+
+# Notes
+
+Generated as candidate during subdivision of parent "<parent predicate>".
+Not selected because: <brief reason the selected one was preferred>.
+```
+
+If the user rejects ALL candidates and proposes something entirely different → create
+their proposal as the active child (`status: pending`), keep the agent's candidates
+as `status: candidate`, and capture a learning in `learnings.md`.
+
+**When candidates get promoted:** During parent re-evaluation (after a sibling is
+satisfied or pruned), if a candidate is now the best next child, the agent proposes it.
+If the user accepts → change `status: candidate` to `status: pending` and set as
+`active_node`. No new directory needed — it already exists.
 
 ### 3. Handle validation results
 
@@ -382,6 +445,8 @@ After execution (try or cycle):
 - Set `status: satisfied` in node's `predicate.md`
 - Update `active_node` in `root.md` to parent directory
 - Re-evaluate parent: maybe it's now satisfiable, maybe it needs another child
+- During re-evaluation, check for `status: candidate` siblings — they may be the
+  natural next child without generating new candidates from scratch
 
 **User says not satisfied:**
 - Keep node as active, status remains `pending`

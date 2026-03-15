@@ -28,13 +28,15 @@ fractal(predicado):
     humano valida → satisfeito | fractal(predicado)
 
   senão:
-    // escolhe o sub-predicado que, satisfeito, mais reduz a incerteza
-    // sobre como satisfazer o pai — não o mais fácil, nem o mais
-    // importante, mas o que mais clarifica o caminho
-    filho ← propor sub-predicado
+    // gera 3-5 candidatos, escolhe o que mais reduz incerteza
+    // candidatos não-escolhidos persistem na hierarquia como hipóteses
+    // pras próximas rodadas de discovery
+    candidatos ← gerar sub-predicados(predicado)
+    filho ← selecionar melhor(candidatos)
+    persistir como candidato(candidatos - filho)
     humano valida proposta:
       se aceita → fractal(filho), depois fractal(predicado)
-      se rejeita → fractal(predicado)  // propõe outro filho
+      se rejeita → fractal(predicado)  // propõe outro ou promove candidato
 ```
 
 Essa operação é fractal. Funciona identicamente em qualquer escala — de "criar uma empresa" a "renomear essa variável". Não existem tipos diferentes de planejamento. Existe uma operação, repetida.
@@ -81,6 +83,8 @@ Rejeição na proposta → agente propõe outro predicado. Rejeição no resulta
 **Árvore:** um objetivo independente com sua própria raiz e nó ativo. Um repo pode conter múltiplas árvores em `.fractal/`, cada uma operando independentemente. Árvores não se referenciam.
 
 **Podado:** predicado que o agente reconheceu como inatingível. Permanente naquele nó, mas não mata o pai — força re-avaliação e geração de outro caminho.
+
+**Candidato:** sub-predicado hipotético gerado durante subdivisão mas não selecionado como filho ativo. Persiste na hierarquia para rodadas futuras de discovery. Não é validado pelo humano até ser promovido a pendente.
 
 ## As regras
 
