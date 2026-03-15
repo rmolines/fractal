@@ -491,26 +491,13 @@ After approval, save to the node directory:
 
 Use the template from `templates/plan-template.md` as the base structure.
 
-Confirm with output:
+Confirm:
 ```
 plan.md saved to ${NODE_DIR}/plan.md
+
+Next step: /fractal:delivery ${ARGUMENTS}
+Recommend /clear before continuing.
 ```
-
-Then use `AskUserQuestion` to present next steps:
-
-```
-Plan saved. What do you want to do?
-
-1. 🚀 Clear context and run delivery (recommended — fresh context for subagents)
-2. ▶️  Run delivery now (keep current context)
-3. 📋 Just save — I'll run delivery later
-4. ✏️  Revise the plan — I want to change something
-```
-
-- Option 1: respond with "Recommend running `/clear` then `/fractal:delivery ${ARGUMENTS}`"
-- Option 2: invoke `/fractal:delivery` skill immediately with `${ARGUMENTS}`
-- Option 3: end the skill — user takes over
-- Option 4: go back to the "Present and get approval" step above
 
 ---
 
