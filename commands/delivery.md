@@ -37,6 +37,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 NODE_DIR="${REPO_ROOT}/${ARGUMENTS}"
 PLAN="${NODE_DIR}/plan.md"
 PREDICATE="${NODE_DIR}/predicate.md"
+PRD="${NODE_DIR}/prd.md"
 ```
 
 If $ARGUMENTS is empty: read `.fractal/root.md` → get `active_node`.
@@ -45,7 +46,8 @@ If plan.md not found: "No plan.md found. Run /fractal:planning first."
 Read in parallel:
 1. `plan.md` — especially `## Execution DAG`
 2. `predicate.md` — the falsifiable condition for this node (the product reference)
-3. `.claude/project.md` — build/test commands, hot files
+3. `prd.md` — acceptance criteria (leaf nodes only; provides concrete validation targets)
+4. `.claude/project.md` — build/test commands, hot files
 
 ### Load project context
 
@@ -309,6 +311,7 @@ Worktree path: <path, if applicable>
 Build command: <from project.md, overridden by standards.md if present>
 Test command: <from project.md, overridden by standards.md if present>
 Hot files (read before editing): <list from project.md>
+PRD acceptance criteria: <acceptance criteria from prd.md, or "No PRD — validate against predicate.md">
 Project context (prior deliveries): <satisfied nodes summary from project context, or "First node — no prior deliveries">
 
 [DELIVERABLE PROMPT]

@@ -15,9 +15,10 @@ You are the PM who holds the line on scope. Your job is to decide whether the
 implementation matches what was agreed in the predicate — not to polish code, not to
 run checklists, but to make a decision.
 
-Four outcomes, no middle ground:
+Five outcomes, no middle ground:
 - **Back to planning** — something fundamental changed or was wrong in the plan
 - **Back to delivery** — implementation gaps, need more work on specific deliverables
+- **Back to discovery** — the discovery or PRD was misclassified; needs re-evaluation from scratch
 - **Back to fractal** — the predicate itself needs revision (fractal primitive re-evaluates the node)
 - **Approved for ship** — predicate satisfied, ready to go
 
@@ -64,7 +65,8 @@ fi
 ```
 
 Read in parallel:
-- `predicate.md` — the acceptance condition (replaces PRD)
+- `predicate.md` — the falsifiable condition
+- `prd.md` — acceptance criteria (leaf nodes only; primary validation target when present)
 - `plan.md` — deliverable list, acceptance criteria
 - `git diff origin/main...HEAD` — committed changes
 - `git diff HEAD` — uncommitted changes
@@ -79,6 +81,8 @@ Combine both diffs as the "total feature diff".
 - Neither → stop: `No context found. Specify: /fractal:review <node-path>`
 - test-checklist.md found → include in evaluator prompt
 - test-checklist.md missing → warn: `Warning: no test-checklist.md — review will rely on diff analysis only (weaker validation)`
+- prd.md found → include in evaluator prompt as primary acceptance criteria
+- prd.md missing on leaf node → warn: `Warning: no prd.md — evaluating against predicate.md only (weaker validation)`
 
 ---
 
@@ -108,6 +112,13 @@ Agent(
 >
 > **Plan:**
 > <full plan.md content>
+>
+> **PRD acceptance criteria (if available):**
+> <full prd.md content, or "No prd.md found">
+>
+> If PRD is present, each acceptance criterion must be PASS before the predicate
+> is considered satisfied. The PRD is the authoritative specification — it overrides
+> predicate text for specificity.
 >
 > **Diff (total changes on this branch):**
 > <combined git diff>
@@ -266,6 +277,11 @@ recommends; you decide. Consider the evaluator's analysis but apply your own jud
 - The evaluator surfaced architectural issues that require re-thinking the approach
 - The plan itself was wrong or incomplete (discovered during review)
 
+**Back to discovery** when:
+- The discovery.md or prd.md was misclassified — the node was framed incorrectly from the start
+- The PRD acceptance criteria fundamentally don't match what was built, suggesting the discovery was wrong
+- Re-planning won't fix it; the discovery phase itself needs to be re-run
+
 **Back to fractal** when:
 - The predicate is missing a condition or capability that wasn't identified when the node was framed
 - The predicate statement itself needs revision based on what was learned during implementation
@@ -314,7 +330,7 @@ _Date: <YYYY-MM-DD>_
 _Diff analyzed: <git ref range, e.g. origin/main...HEAD>_
 
 ## Decision
-decision: <approved | back-to-delivery | back-to-planning | back-to-fractal>
+decision: <approved | back-to-delivery | back-to-planning | back-to-discovery | back-to-fractal>
 reason: <1-2 sentence justification>
 
 ## Predicate Status
@@ -368,6 +384,16 @@ Run /fractal:planning <node-path> to revise.
 Review findings persisted — downstream skill will read them automatically after /clear.
 ```
 
+**Back to discovery:**
+```
+Decision: Back to discovery
+
+Misclassification: <what was wrong with the discovery>
+
+Deleting discovery.md and prd.md to force re-evaluation.
+Run /fractal to re-discover this node.
+```
+
 **Back to fractal:**
 ```
 Decision: Back to fractal
@@ -407,7 +433,7 @@ You are the PM/designer who holds the line. This means:
 - **Evaluator is independent.** It sees diff + predicate, not delivery context.
 - **You decide, not the evaluator.** The evaluator critiques; you weigh the evidence.
 - **Out-of-scope is a hard gate.** Any violation → back to planning.
-- **One decision, four outcomes.** No "approved with reservations." Either it's ready or it's not.
+- **One decision, five outcomes.** No "approved with reservations." Either it's ready or it's not.
 - **Subagent uses model: sonnet.** Never opus in the evaluator.
 
 ---

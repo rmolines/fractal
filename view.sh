@@ -52,6 +52,16 @@ derive_state() {
     state="pruned"
   elif [ "$status" = "candidate" ]; then
     state="candidate"
+  elif [ -f "$node_dir/discovery.md" ] && [ -f "$node_dir/prd.md" ]; then
+    state="specified"
+  elif [ -f "$node_dir/discovery.md" ]; then
+    local dtype=""
+    dtype=$(awk '/^---/{fc++; next} fc==1 && /^node_type:/{print $2; exit}' "$node_dir/discovery.md" 2>/dev/null)
+    if [ "$dtype" = "branch" ]; then
+      state="discovered · branch"
+    else
+      state="discovered · leaf"
+    fi
   elif [ -f "$node_dir/plan.md" ] && [ -f "$node_dir/results.md" ] && [ -f "$node_dir/review.md" ]; then
     state="reviewed"
   elif [ -f "$node_dir/plan.md" ] && [ -f "$node_dir/results.md" ]; then
@@ -78,6 +88,8 @@ state_sort_key() {
     executed)   printf '1' ;;
     reviewed)   printf '2' ;;
     planned)    printf '3' ;;
+    "discovered"*)  printf '3' ;;
+    specified)  printf '3' ;;
     candidate)  printf '4' ;;
     pending)    printf '5' ;;
     satisfied)  printf '6' ;;
@@ -94,6 +106,8 @@ state_group_label() {
     executed)   printf 'executed' ;;
     reviewed)   printf 'reviewed' ;;
     planned)    printf 'planned' ;;
+    "discovered"*)  printf 'in progress' ;;
+    specified)  printf 'in progress' ;;
     candidate)  printf 'candidate' ;;
     pending)    printf 'pending' ;;
     satisfied)  printf 'done' ;;
@@ -594,7 +608,7 @@ cat > "$OUTPUT" <<HTMLEOF
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>fractal</title>
+<title>openpredicatree</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap');
 
@@ -1222,7 +1236,7 @@ cat > "$OUTPUT" <<HTMLEOF
 <body>
 
 <div class="header">
-  <h1>fractal</h1>
+  <h1>openpredicatree</h1>
 </div>
 
 <div class="tabs">
@@ -1256,7 +1270,7 @@ ${DESC_LIST_HTML}
     <div class="skills-aside">
       <div class="aside-label">shortcut</div>
       <div class="aside-text">
-        <strong style="font-weight:400;color:var(--text-soft)">try</strong> skips the full cycle — for predicates simple enough to solve in one shot.
+        <strong style="font-weight:400;color:var(--text-soft)">patch</strong> skips the full cycle — for predicates simple enough to solve in one shot.
       </div>
     </div>
 

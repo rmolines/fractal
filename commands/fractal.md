@@ -41,10 +41,12 @@ when something doesn't add up, and challenge scope or assumptions.
 
 ```
 GUARD → [error/no-tree: STOP | satisfied/pruned: ASCEND | else: SHOW]
-SHOW → EVALUATE
-EVALUATE → [unachievable: PRUNE | sprint_sized: EXECUTE | too_large: SUBDIVIDE]
+SHOW → DISCOVER
+DISCOVER → [has_discovery: ROUTE | else: spawn evaluator → write discovery.md → ROUTE]
+ROUTE → [unachievable: PRUNE | branch: SUBDIVIDE | leaf+no_prd: SPECIFY | leaf+prd: EXECUTE]
+SPECIFY → write prd.md → human validates → EXECUTE
 PRUNE → persist status:pruned → ASCEND
-EXECUTE → persist execution.md → [try | sprint] → STOP
+EXECUTE → persist execution.md → [patch | sprint] → STOP
 SUBDIVIDE → persist candidates + child → update pointer → self-invoke → STOP
 VALIDATE → [satisfied: persist status:satisfied → ASCEND | not: self-invoke → STOP]
 ASCEND → [depth=0: COMPLETE → STOP | else: update pointer → self-invoke → STOP]
@@ -98,9 +100,9 @@ Estado: <state> | Filhos: <children_satisfied>/<children_total>
 If notes exist in active_node's predicate.md → read them (context from prior session).
 If `.fractal/learnings.md` exists → read it (calibrate proposals).
 
-→ go to step 3 (EVALUATE).
+→ go to step 3 (DISCOVER).
 
-### 3. EVALUATE
+### 3. DISCOVER
 
 Spawn evaluator subagent:
 
@@ -113,7 +115,7 @@ Agent(
 )
 ```
 
-Wait for response. Parse: `achievable`, `sub_predicate`, `same_as_input`, `sprint_sized`, `reasoning`.
+Wait for response. Parse: `achievable`, `node_type`, `confidence`, `proposed_children`, `prd_seed`, `reasoning`.
 
 Present to human:
 
@@ -122,15 +124,15 @@ Present to human:
   → Confirmed → go to 4a (PRUNE)
   → Denied → re-evaluate with human's additional context
 
-- `sprint_sized: yes`:
+- `node_type: leaf`:
   Decide execution mode:
-  **Try** if ALL: <=3 files, no architecture decisions, single concern, describable in 2-3 sentences.
+  **Patch** if ALL: <=3 files, no architecture decisions, single concern, describable in 2-3 sentences.
   **Sprint** otherwise.
-  "Executar '<sub_predicate>' via [try|sprint]. <reasoning>. Aceita?"
+  "Executar '<prd_seed>' via [patch|sprint]. <reasoning>. Aceita?"
   → Confirmed → go to 4b (EXECUTE)
   → Rejected → ask what human prefers
 
-- `sprint_sized: no`:
+- `node_type: branch`:
   Trigger candidate generation (see SUBDIVIDE step).
   Present candidates to human.
   → Confirmed → go to 4c (SUBDIVIDE)
@@ -150,7 +152,7 @@ The sub-predicate fits in one sprint. Persist, then run.
 
 **Persist BEFORE acting:**
 
-1. If `same_as_input: no` — sub-predicate differs from active node:
+1. If the sub-predicate differs from the active node's predicate:
    - Create child dir: `mkdir -p <tree_path>/<active_node_rel>/<slug>`
    - Write `<slug>/predicate.md` with `status: pending`, `predicate`, `created`
    - Update `active_node` in `root.md` to new child path
@@ -159,7 +161,7 @@ The sub-predicate fits in one sprint. Persist, then run.
 
 ```markdown
 ---
-mode: try | sprint
+mode: patch | sprint
 sub_predicate: "<sub_predicate>"
 reasoning: "<evaluator reasoning>"
 created: <YYYY-MM-DD>
@@ -168,8 +170,8 @@ created: <YYYY-MM-DD>
 
 **Then execute:**
 
-- **Try** → invoke `/fractal:try <sub_predicate text>`. STOP.
-  After try completes, the next `/fractal` invocation will enter VALIDATE
+- **Patch** → invoke `/fractal:patch <sub_predicate text>`. STOP.
+  After patch completes, the next `/fractal` invocation will enter VALIDATE
   (the node will have execution artifacts and human can validate).
 
 - **Sprint** → invoke `/fractal:planning <node_dir_path>`. STOP.
@@ -184,7 +186,7 @@ The predicate is too large or uncertain. Generate candidates.
 Scan child directories for `status: candidate`. If candidates exist, read them.
 They represent hypotheses from previous rounds — context may have changed.
 
-**Step 1 — Generate 3-5 candidate sub-predicates:**
+**Step 1 — Generate 3-5 candidate sub-predicates** (discovery.md contains proposed_children from the evaluator as a starting point)**:**
 Before generating, ask: "Do I have empirical knowledge or am I guessing?"
 If guessing → at least one candidate MUST be a strategy investigation.
 
@@ -225,7 +227,7 @@ active child, keep agent's as candidates, capture learning in `learnings.md`.
 
 ### 5. VALIDATE (post-execution)
 
-After try or sprint completes and human has seen the result.
+After patch or sprint completes and human has seen the result.
 
 Ask: "O predicado foi satisfeito?"
 - **Yes** → write `status: satisfied` in active node's `predicate.md`. → go to step 6 (ASCEND).
@@ -259,7 +261,7 @@ If the user decides the root objective has changed mid-execution:
 
 ## Sprint cycle reference
 
-When EXECUTE chooses sprint mode, the cycle is:
+When EXECUTE chooses patch mode, invoke `/fractal:patch`. When EXECUTE chooses sprint mode, the cycle is:
 `/fractal:planning` → `/fractal:delivery` → `/fractal:review` → `/fractal:ship`
 
 These four skills form a closed cycle. They are always invoked in sequence.
@@ -279,3 +281,5 @@ Each receives the node directory path as argument. Artifacts are saved inside th
 - **Read learnings on SHOW.** Accumulated insights inform future proposals.
 - **Subagents use model: sonnet.** Never opus in a subagent.
 - **Single tree per repo.** Auto-discovered, no argument needed.
+- **ALWAYS persist discovery.md before routing.**
+- **PRD is required for leaf nodes before planning.**

@@ -148,6 +148,57 @@ ACCEPTANCE=$(get_field D1 acceptance)
 
 ---
 
+## Schema 3: Discovery Output (discovery.md)
+
+The evaluator writes this file after classifying a predicate node as branch or leaf. `/fractal` reads it to route the node through the correct path. Saved to the active node directory.
+
+### Format
+
+```markdown
+---
+node_type: branch | leaf
+confidence: high | medium | low
+reasoning: "2-3 sentences explaining the classification"
+proposed_children:
+  - "child predicate 1"
+  - "child predicate 2"
+  - "child predicate 3"
+prd_seed: "one-sentence scope for the PRD"
+created: YYYY-MM-DD
+---
+
+# Discovery notes
+
+What was found in the repo, what informed the classification.
+```
+
+### Field rules
+
+| Field | Type | Rules |
+|---|---|---|
+| `node_type` | enum | `branch` (composite — satisfied by children) / `leaf` (executable — satisfied by sprint) |
+| `confidence` | enum | `high` (clear evidence) / `medium` (reasonable inference) / `low` (best guess, may need human override) |
+| `reasoning` | string | 2-3 sentences. What was found and why this classification. |
+| `proposed_children` | list | 2-5 items. Branch only. Each item is a falsifiable predicate string. Empty or omitted for leaf nodes. |
+| `prd_seed` | string | One sentence. Leaf only. Scopes exactly what the PRD must cover. Empty or omitted for branch nodes. |
+| `created` | date | YYYY-MM-DD |
+
+### Semantics
+
+- **branch** — the predicate is too large or composite for a single sprint. Children decompose it. Branch nodes never get `prd.md`, `plan.md`, or other sprint artifacts.
+- **leaf** — the predicate is sprint-sized. A PRD can be written from `prd_seed`, and `planning → delivery → review → ship` executes against it.
+- **confidence: low** — `/fractal` should present the classification to the human with extra emphasis on validation. The evaluator is uncertain.
+
+### Parsing
+
+```bash
+NODE_TYPE=$(grep "^node_type:" discovery.md | awk '{print $2}')
+CONFIDENCE=$(grep "^confidence:" discovery.md | awk '{print $2}')
+PRD_SEED=$(grep "^prd_seed:" discovery.md | sed 's/^prd_seed: //' | tr -d '"')
+```
+
+---
+
 ## Schema 4: Review Findings (review.md)
 
 `/fractal:review` writes this file after every evaluation. Downstream skills (`/fractal:planning`, `/fractal:delivery`) read it on entry to detect amendment mode.
@@ -248,6 +299,62 @@ get_result_field() {
 STATUS=$(get_result_field D1 status)
 SUMMARY=$(get_result_field D1 summary)
 ERRORS=$(get_result_field D1 errors)
+```
+
+---
+
+## Schema 6: PRD (prd.md)
+
+The specify step writes this file for leaf nodes after discovery classifies them. `/fractal:planning` reads it as the primary requirement source — acceptance criteria map directly to functional requirements and deliverables. Saved to the active node directory.
+
+### Format
+
+```markdown
+---
+predicate: "the falsifiable condition from predicate.md"
+created: YYYY-MM-DD
+---
+
+## Acceptance Criteria
+
+- AC1: <falsifiable criterion that maps to a deliverable>
+- AC2: <falsifiable criterion that maps to a deliverable>
+- AC3: <falsifiable criterion>
+
+## Out of Scope
+
+- <explicitly excluded item>
+- <explicitly excluded item>
+
+## Constraints
+
+- <technical constraint>
+- <design constraint>
+```
+
+### Field rules
+
+| Field | Type | Rules |
+|---|---|---|
+| `predicate` | string | Copied exactly from the node's `predicate.md`. Must match. |
+| `created` | date | YYYY-MM-DD |
+| Acceptance Criteria | list | Each criterion is falsifiable — you can unambiguously say "yes" or "no". Each maps to at least one deliverable in the eventual plan. |
+| Out of Scope | list | Items explicitly excluded. `/fractal:review` checks for violations. |
+| Constraints | list | Technical or design constraints that deliverables must respect. |
+
+### Semantics
+
+- `prd.md` only exists on **leaf** nodes. Branch nodes never have one.
+- Acceptance criteria are the primary input for `/fractal:planning`'s FR extraction.
+- Out of Scope items are hard gates in `/fractal:review` — any violation → back to planning.
+- The human validates `prd.md` before sprint begins. Rejection → re-specify.
+
+### Parsing
+
+```bash
+PREDICATE=$(grep "^predicate:" prd.md | sed 's/^predicate: //' | tr -d '"')
+# Acceptance criteria (list items under ## Acceptance Criteria)
+AC=$(awk '/^## Acceptance Criteria/{found=1; next} found && /^- /{print} found && /^##/{exit}' prd.md)
 ```
 
 ---

@@ -14,18 +14,25 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
 .fractal/
   ciclofaixas/                 # the single tree for this repo
     root.md                    # root predicate + active node pointer
-    dados-cet/                 # predicate node (child of root)
+    dados-cet/                 # leaf node (child of root)
       predicate.md             # falsifiable condition, status, notes
+      discovery.md             # from evaluator: node_type, classification
+      prd.md                   # from specify step: acceptance criteria (leaf only)
       plan.md                  # from /fractal:planning
       results.md               # from /fractal:delivery
       review.md                # from /fractal:review
       endpoint-geojson/        # nested predicate (grandchild)
         predicate.md
+        discovery.md
+        prd.md
         plan.md
         results.md
         review.md
-    mapa-renderiza/            # predicate node (child of root)
+    mapa-renderiza/            # branch node (child of root)
       predicate.md
+      discovery.md             # node_type: branch — no prd.md
+      regiao-filtro/           # child of branch
+        predicate.md
 ```
 
 ### root.md (inside each tree directory)
@@ -62,6 +69,58 @@ selected as the active child. They persist in the hierarchy for future discovery
 A candidate is NOT human-validated — it's the agent's hypothesis. When the parent is
 re-evaluated, existing candidates are read before proposing new sub-predicates.
 
+### discovery.md (inside each node directory, written by evaluator)
+
+```markdown
+---
+node_type: branch | leaf
+confidence: high | medium | low
+reasoning: "why this classification"
+proposed_children:                    # branch only — YAML list
+  - "child predicate 1"
+  - "child predicate 2"
+prd_seed: "one-sentence PRD scope"   # leaf only
+created: 2026-03-15
+---
+
+# Discovery notes
+
+Context from the evaluator's investigation: what was found in the repo,
+what informed the classification decision.
+```
+
+**`node_type: branch`** — the predicate is composite. Satisfied when all children are satisfied.
+Branch nodes never have `prd.md`, `plan.md`, `results.md`, or `review.md`.
+
+**`node_type: leaf`** — the predicate is executable. A PRD can be written and a sprint
+executed against it. Leaf nodes get `prd.md` → `plan.md` → `results.md` → `review.md`.
+
+### prd.md (inside leaf node directories, written by specify step)
+
+```markdown
+---
+predicate: "the falsifiable condition from predicate.md"
+created: 2026-03-15
+---
+
+## Acceptance Criteria
+
+- Criterion 1: <falsifiable, maps to a deliverable>
+- Criterion 2: <falsifiable, maps to a deliverable>
+
+## Out of Scope
+
+- <explicitly excluded item>
+
+## Constraints
+
+- <technical or design constraint>
+```
+
+`prd.md` exists only on leaf nodes. It translates the predicate's falsifiable condition
+into concrete acceptance criteria that `/fractal:planning` uses to extract functional
+requirements and build deliverables. The human validates `prd.md` before sprint begins.
+
 ### Deriving execution state from artifacts
 
 The execution state of a node is NEVER stored explicitly — it's derived from which
@@ -69,7 +128,10 @@ artifacts exist in the directory:
 
 | Artifacts present | Execution state | What to do |
 |---|---|---|
-| Only `predicate.md` | Not started | Evaluate: try, cycle, or subdivide |
+| Only `predicate.md` | Not started | Run evaluator (discovery) |
+| `predicate.md` + `discovery.md` (node_type: branch) | Discovered (branch) | Decompose — generate/select children |
+| `predicate.md` + `discovery.md` (node_type: leaf) | Discovered (leaf) | Write prd.md (specify) |
+| `predicate.md` + `discovery.md` + `prd.md` | Specified | Run sprint: planning → delivery → review → ship |
 | `predicate.md` + child dirs | Subdivided | Check children's status |
 | `plan.md` exists | Planned | Run delivery |
 | `plan.md` + `results.md` | Executed | Run review |
@@ -98,4 +160,6 @@ A new session reads `predicate.md` and has full context. If notes are empty, con
 - Status is in `predicate.md` frontmatter, execution state is derived from artifacts
 - `active_node` in `root.md` is a relative path to the active node's directory
 - Cycle artifacts (`plan.md`, `results.md`, `review.md`) follow schemas in `templates/schemas.md`
+- Discovery artifact (`discovery.md`) follows Schema 3 in `templates/schemas.md`
+- PRD artifact (`prd.md`) follows Schema 6 in `templates/schemas.md`
 - `ls` shows the tree. `cat` shows the state. No parser needed.

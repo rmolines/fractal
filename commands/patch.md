@@ -1,10 +1,10 @@
 ---
-description: "Fast iteration flow: implements in isolated worktree, presents result, user approves or discards. Use for changes where you already know what you want."
+description: "Fast patch flow: implements in isolated worktree, presents result, user approves or discards. Use for changes where you already know what you want."
 argument-hint: "description of the change"
 allowed-tools: AskUserQuestion
 ---
 
-# /fractal:try
+# /fractal:patch
 
 ## Human gates
 
@@ -59,14 +59,14 @@ From the description, derive a slug: lowercase, hyphens only, max 30 chars.
 "Fix pagination bug in user list"  → "fix-pagination-bug-user-list"
 ```
 
-The worktree branch will be `try-<slug>`. The worktree path will be
-`.claude/worktrees/try-<slug>` relative to repo root.
+The worktree branch will be `patch-<slug>`. The worktree path will be
+`.claude/worktrees/patch-<slug>` relative to repo root.
 
 ---
 
 ## Phase 1 — Complexity check
 
-Before starting, assess whether the request fits `/fractal:try`.
+Before starting, assess whether the request fits `/fractal:patch`.
 
 Signs it is **too complex**:
 - Requires architectural decisions (new patterns, new abstractions)
@@ -76,8 +76,8 @@ Signs it is **too complex**:
 
 If too complex, say:
 
-> "I think this might be too complex for a quick try — it involves [reason]. Want me
-> to continue with `/fractal:try`, or would `/fractal` be a better starting
+> "I think this might be too complex for a quick patch — it involves [reason]. Want me
+> to continue with `/fractal:patch`, or would `/fractal` be a better starting
 > point?"
 
 This is a suggestion, not a blocker. If the user says "continue" or "just do it" — proceed.
@@ -106,11 +106,11 @@ Launch a single subagent with `isolation: "worktree"` and `model: "sonnet"`:
 
 ```
 Agent(
-  description="try: <slug>",
+  description="patch: <slug>",
   model="sonnet",
   isolation="worktree",
-  branch="try-<slug>",
-  worktree=".claude/worktrees/try-<slug>",
+  branch="patch-<slug>",
+  worktree=".claude/worktrees/patch-<slug>",
   prompt="<implementation prompt below>"
 )
 ```
@@ -122,7 +122,7 @@ Agent(
 Repo: <REPO_NAME>
 Repo root: <REPO_ROOT>
 Current branch: <branch name>
-Worktree path: .claude/worktrees/try-<slug>
+Worktree path: .claude/worktrees/patch-<slug>
 Build command: <BUILD_CMD or "not configured">
 Test command: <TEST_CMD or "not configured">
 Hot files (read before editing): <HOT_FILES or "none listed">
@@ -140,7 +140,7 @@ Implement the following change end-to-end:
    <TEST_CMD>
 4. Return a structured result in this exact format:
 
-task_id: try-<slug>
+task_id: patch-<slug>
 status: success | partial | failed
 summary: <1-3 sentences describing what was done>
 files_changed:
@@ -159,7 +159,7 @@ Wait for the subagent to complete before proceeding.
 Show the result clearly so the user can evaluate:
 
 ```
-## Result — try-<slug>
+## Result — patch-<slug>
 
 **Summary:** <subagent summary>
 
@@ -173,14 +173,14 @@ Show the result clearly so the user can evaluate:
 **Diff:**
 <git diff output from the worktree>
 
-**Worktree:** .claude/worktrees/try-<slug>
+**Worktree:** .claude/worktrees/patch-<slug>
 ```
 
 Fetch the diff:
 ```bash
-git -C "$REPO_ROOT/.claude/worktrees/try-<slug>" diff HEAD~1..HEAD
+git -C "$REPO_ROOT/.claude/worktrees/patch-<slug>" diff HEAD~1..HEAD
 # or if the branch has a single commit:
-git -C "$REPO_ROOT" diff main...try-<slug>
+git -C "$REPO_ROOT" diff main...patch-<slug>
 ```
 
 Then ask:
@@ -203,11 +203,11 @@ Launch a new subagent in the **same worktree** with the adjustment request:
 
 ```
 Agent(
-  description="try: <slug> — adjustment",
+  description="patch: <slug> — adjustment",
   model="sonnet",
   isolation="worktree",
-  branch="try-<slug>",
-  worktree=".claude/worktrees/try-<slug>",
+  branch="patch-<slug>",
+  worktree=".claude/worktrees/patch-<slug>",
   prompt="<adjustment prompt>"
 )
 ```
@@ -217,7 +217,7 @@ Adjustment prompt:
 ```
 [EXECUTION CONTEXT]
 Repo: <REPO_NAME>
-Worktree path: .claude/worktrees/try-<slug>
+Worktree path: .claude/worktrees/patch-<slug>
 Build command: <BUILD_CMD or "not configured">
 Test command: <TEST_CMD or "not configured">
 
@@ -241,8 +241,8 @@ approves or discards.
 If the user says "discard", "descarta", "cancel", "drop", "never mind", or similar:
 
 ```bash
-git worktree remove --force "$REPO_ROOT/.claude/worktrees/try-<slug>"
-git -C "$REPO_ROOT" branch -D "try-<slug>"
+git worktree remove --force "$REPO_ROOT/.claude/worktrees/patch-<slug>"
+git -C "$REPO_ROOT" branch -D "patch-<slug>"
 ```
 
 Confirm:
@@ -258,7 +258,7 @@ Execute the ship-light flow inline:
 **Step 1 — Merge worktree branch into current branch**
 
 ```bash
-git -C "$REPO_ROOT" merge "try-<slug>" --no-ff -m "feat: <$ARGUMENTS>"
+git -C "$REPO_ROOT" merge "patch-<slug>" --no-ff -m "feat: <$ARGUMENTS>"
 ```
 
 If merge conflicts: list the conflicting files and ask for guidance. Do not force-merge.
@@ -272,8 +272,8 @@ If merge conflicts: list the conflicting files and ask for guidance. Do not forc
 
 If either fails: **stop**. Report the failure in full. Do not push. Do not create a PR.
 
-> "Build/tests failed after merge. No PR created. The worktree branch `try-<slug>` still
-> exists — you can inspect it at `.claude/worktrees/try-<slug>`."
+> "Build/tests failed after merge. No PR created. The worktree branch `patch-<slug>` still
+> exists — you can inspect it at `.claude/worktrees/patch-<slug>`."
 
 **Step 3 — Push to remote**
 
@@ -292,7 +292,7 @@ gh pr create --title "<$ARGUMENTS>" --body "$(cat <<'EOF'
 <list>
 
 ---
-Fast iteration via /fractal:try
+Fast patch via /fractal:patch
 EOF
 )"
 ```
@@ -315,8 +315,8 @@ gh pr merge <pr_number> --squash
 **Step 7 — Clean up**
 
 ```bash
-git worktree remove --force "$REPO_ROOT/.claude/worktrees/try-<slug>"
-git -C "$REPO_ROOT" branch -D "try-<slug>"
+git worktree remove --force "$REPO_ROOT/.claude/worktrees/patch-<slug>"
+git -C "$REPO_ROOT" branch -D "patch-<slug>"
 ```
 
 **Step 8 — Deploy and smoke test**
@@ -335,7 +335,7 @@ If neither is defined: skip silently.
 **Step 9 — Report**
 
 ```
-## Shipped — try-<slug>
+## Shipped — patch-<slug>
 
 PR: <url>
 Merge: squashed into <branch>
@@ -349,12 +349,12 @@ Done.
 
 ## Orphan node persistence
 
-When `/fractal:try` runs **outside** a fractal tree context (no `active_node` in any
+When `/fractal:patch` runs **outside** a fractal tree context (no `active_node` in any
 `root.md`, or invoked standalone without `/fractal` routing), and the user **approves**
 the result, persist an orphan node:
 
 ```bash
-ORPHAN_DIR="$FRACTAL_DIR/_orphans/try-<slug>"
+ORPHAN_DIR="$FRACTAL_DIR/_orphans/patch-<slug>"
 mkdir -p "$ORPHAN_DIR"
 ```
 
@@ -365,12 +365,12 @@ Write `predicate.md`:
 predicate: "<$ARGUMENTS>"
 status: satisfied
 created: <date>
-origin: try
+origin: patch
 ---
 
 # Notes
 
-Implemented via /fractal:try (orphan — no parent tree).
+Implemented via /fractal:patch (orphan — no parent tree).
 
 ## Result
 <subagent summary>
@@ -379,7 +379,7 @@ Implemented via /fractal:try (orphan — no parent tree).
 <list>
 ```
 
-When `/fractal:try` is invoked **from within** a tree (via `/fractal` routing with an
+When `/fractal:patch` is invoked **from within** a tree (via `/fractal` routing with an
 active node), do NOT create an orphan — the active node's `predicate.md` status is
 updated by the `/fractal` skill after validation.
 
@@ -396,6 +396,7 @@ If discarded, no orphan is created.
 - **Subagent always uses model: sonnet.** Never opus.
 - **Build + test is a hard gate on approval.** Stop and report if it fails. Never force a broken PR.
 - **References to other skills use full prefix:** `/fractal`, `/fractal:planning`, `/fractal:delivery`, `/fractal:ship`, etc.
+- **Patch nodes are implicitly leaf nodes.** Discovery is skipped — the predicate is assumed to be sprint-sized by definition. No `discovery.md` or `prd.md` is written.
 
 ---
 

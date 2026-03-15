@@ -1,4 +1,4 @@
-# OpenPredicate
+# OpenPredicaTree
 
 You tell it what you want. It figures out how to get there.
 
@@ -69,16 +69,17 @@ One recursive function. Same operation at every scale.
 
 ```
 fractal(predicate):
-  if unachievable        → prune
-  if a try can satisfy   → try → human validates
-  if a cycle can satisfy → plan → build → review → ship → human validates
-  else                   → find the riskiest unknown → human validates → recurse
+  discover(predicate)        → branch | leaf | unachievable
+  if unachievable            → prune
+  if leaf, patch can satisfy → patch → human validates
+  if leaf, cycle needed      → prd → plan → build → review → ship → human validates
+  if branch                  → find riskiest child → human validates → recurse
 ```
 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rmolines/openpredicate/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rmolines/openpredicatree/master/install.sh | bash
 ```
 
 Start a new session (quit and run `claude` again). Run `/fractal` in any repo.
@@ -94,10 +95,13 @@ predicate. Which files exist tells the agent what happened and what to do next.
     root.md                    # the goal + which node is active
     seat-changes/
       predicate.md             # "Stripe handles mid-cycle seat changes"
+      discovery.md             # node_type: leaf
+      prd.md                   # acceptance criteria
       plan.md                  # how to verify it
       results.md               # what happened
     webhook-handler/
       predicate.md             # next piece
+      discovery.md             # node_type: leaf
     pricing-page/
       predicate.md             # not started yet
 ```
@@ -110,7 +114,7 @@ The plugin installs a chain of skills into Claude Code:
 
 - `/fractal:init` — bootstrap. Extract an objective, create the tree, hand off to `/fractal`.
 - `/fractal` — idempotent state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge.
-- `/fractal:try` — fast iteration for small changes that don't need the full cycle.
+- `/fractal:patch` — fast patch for small changes that don't need the full cycle.
 - `/fractal:planning` — transforms a predicate into an executable plan.
 - `/fractal:delivery` — orchestrates subagents to execute the plan.
 - `/fractal:review` — validates the implementation against the predicate.

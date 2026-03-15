@@ -167,10 +167,19 @@ fi
 HAS_PLAN=false
 HAS_RESULTS=false
 HAS_REVIEW=false
+HAS_DISCOVERY=false
+HAS_PRD=false
 
-[ -f "$ACTIVE_DIR/plan.md" ]    && HAS_PLAN=true
-[ -f "$ACTIVE_DIR/results.md" ] && HAS_RESULTS=true
-[ -f "$ACTIVE_DIR/review.md" ]  && HAS_REVIEW=true
+[ -f "$ACTIVE_DIR/plan.md" ]      && HAS_PLAN=true
+[ -f "$ACTIVE_DIR/results.md" ]   && HAS_RESULTS=true
+[ -f "$ACTIVE_DIR/review.md" ]    && HAS_REVIEW=true
+[ -f "$ACTIVE_DIR/discovery.md" ] && HAS_DISCOVERY=true
+[ -f "$ACTIVE_DIR/prd.md" ]       && HAS_PRD=true
+
+DISCOVERY_TYPE=""
+if [ "$HAS_DISCOVERY" = true ]; then
+  DISCOVERY_TYPE="$(get_field "$ACTIVE_DIR/discovery.md" node_type)"
+fi
 
 # ── State derivation ─────────────────────────────────────────────────────────
 
@@ -184,6 +193,12 @@ elif [ "$HAS_PLAN" = true ] && [ "$HAS_RESULTS" = true ]; then
   STATE="executed"
 elif [ "$HAS_PLAN" = true ]; then
   STATE="planned"
+elif [ "$HAS_DISCOVERY" = true ] && [ "$HAS_PRD" = true ]; then
+  STATE="specified"
+elif [ "$HAS_DISCOVERY" = true ] && [ "$DISCOVERY_TYPE" = "branch" ]; then
+  STATE="discovered_branch"
+elif [ "$HAS_DISCOVERY" = true ]; then
+  STATE="discovered"
 elif [ "$CHILDREN_TOTAL" -gt 0 ]; then
   STATE="subdivided"
 else
@@ -211,3 +226,6 @@ echo "children_candidate: $CHILDREN_CANDIDATE"
 echo "has_plan: $HAS_PLAN"
 echo "has_results: $HAS_RESULTS"
 echo "has_review: $HAS_REVIEW"
+echo "has_discovery: $HAS_DISCOVERY"
+echo "has_prd: $HAS_PRD"
+echo "discovery_type: $DISCOVERY_TYPE"

@@ -93,6 +93,18 @@ For nodes with `plan.md` + `results.md` + `review.md` but `status` != `satisfied
 `[WARN] Artefatos completos mas status pending — pode precisar de validacao: <path>`
 - No auto-fix (requires human judgment)
 
+### Check 7: Discovery and PRD consistency
+
+For every node with `discovery.md`:
+- Read `node_type` from frontmatter
+- If `node_type: branch` and `prd.md` exists → `[WARN] prd.md on a branch node is inconsistent: <path>`
+  - `--fix`: ask to remove prd.md
+- If `node_type: branch` and `plan.md` exists → `[WARN] Sprint artifacts on a branch node: <path>`
+  - `--fix`: ask to remove sprint artifacts (plan.md, results.md, review.md)
+- If `node_type: leaf` and `plan.md` exists but no `prd.md` → `[WARN] Leaf node has plan but no prd.md (pre-update node): <path>`
+  - No auto-fix (may be a node created before the PRD model update)
+- If `discovery.md` exists but `node_type` is not `branch` or `leaf` → `[WARN] Invalid node_type in discovery.md: <path>`
+
 ---
 
 ## Output
