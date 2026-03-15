@@ -78,22 +78,10 @@ fractal(predicate):
 ## Install
 
 ```bash
-git clone https://github.com/rmolines/openpredicate ~/git/openpredicate
+curl -fsSL https://raw.githubusercontent.com/rmolines/openpredicate/master/install.sh | bash
 ```
 
-Add to `~/.claude/marketplace.json` (create it if missing):
-
-```json
-{
-  "plugins": [{"path": "~/git/openpredicate"}]
-}
-```
-
-If the file exists, add `{"path": "~/git/openpredicate"}` to the `plugins` array.
-
-Start a new session (quit and run `claude` again). `/fractal` will be available
-in any repo. One command is all you need. It handles planning, execution, review,
-and shipping internally.
+Start a new session (quit and run `claude` again). Run `/fractal` in any repo.
 
 ## The tree
 
