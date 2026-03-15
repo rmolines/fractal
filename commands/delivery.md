@@ -9,7 +9,19 @@ user-invocable: false
 
 ## Human gates
 
-Every time this skill needs human input (confirmation, choice, correction), use the `AskUserQuestion` tool instead of printing the question as text output. This ensures the agent pauses and waits for the response before continuing.
+Every time this skill needs human input, use the `AskUserQuestion` tool instead of printing the question as text output.
+
+Context header (REQUIRED on every question when state is available):
+Prefix the question string with:
+
+📍 <breadcrumb> | <state>
+🎯 <active_predicate (max 80 chars)>
+
+<actual question>
+
+Variables come from the pre-loaded State section. If state is not yet loaded (e.g., early steps of /fractal:propose before tree detection), omit the header.
+
+IMPORTANT: The header must be plain text. No markdown formatting (no **, ##, *, etc.) in the question string. Emojis are fine as visual anchors.
 
 You are the orchestrator (Opus thread) executing an approved plan.
 Subagents do the implementation. You coordinate, validate, and unblock.
@@ -45,7 +57,7 @@ If plan.md not found: "No plan.md found. Run /fractal:planning first."
 
 Read in parallel:
 1. `plan.md` — especially `## Execution DAG`
-2. `predicate.md` — the falsifiable condition for this node (the product reference)
+2. `predicate.md` — the verifiable condition for this node (the product reference)
 3. `prd.md` — acceptance criteria (leaf nodes only; provides concrete validation targets)
 4. `.claude/project.md` — build/test commands, hot files
 

@@ -9,7 +9,19 @@ user-invocable: false
 
 ## Human gates
 
-Every time this skill needs human input (confirmation, choice, correction), use the `AskUserQuestion` tool instead of printing the question as text output. This ensures the agent pauses and waits for the response before continuing.
+Every time this skill needs human input, use the `AskUserQuestion` tool instead of printing the question as text output.
+
+Context header (REQUIRED on every question when state is available):
+Prefix the question string with:
+
+📍 <breadcrumb> | <state>
+🎯 <active_predicate (max 80 chars)>
+
+<actual question>
+
+Variables come from the pre-loaded State section. If state is not yet loaded (e.g., early steps of /fractal:propose before tree detection), omit the header.
+
+IMPORTANT: The header must be plain text. No markdown formatting (no **, ##, *, etc.) in the question string. Emojis are fine as visual anchors.
 
 You are the PM who holds the line on scope. Your job is to decide whether the
 implementation matches what was agreed in the predicate — not to polish code, not to
@@ -65,7 +77,7 @@ fi
 ```
 
 Read in parallel:
-- `predicate.md` — the falsifiable condition
+- `predicate.md` — the verifiable condition
 - `prd.md` — acceptance criteria (leaf nodes only; primary validation target when present)
 - `plan.md` — deliverable list, acceptance criteria
 - `git diff origin/main...HEAD` — committed changes
@@ -103,7 +115,7 @@ Agent(
 ### Evaluator prompt
 
 > You are a product reviewer. Your job is to evaluate whether an implementation
-> satisfies a falsifiable predicate. You are read-only — do not modify any files.
+> satisfies a verifiable predicate. You are read-only — do not modify any files.
 > Do NOT use any tools — all context is provided below. Analyze the predicate, plan,
 > and diff inline and return your evaluation directly.
 >
@@ -168,7 +180,7 @@ Agent(
 > - OUT_OF_SCOPE_VIOLATION — implements something explicitly excluded
 >
 > **2. Predicate evaluation**
-> Evaluate the single predicate (the falsifiable condition from predicate.md):
+> Evaluate the single predicate (the verifiable condition from predicate.md):
 > - PASS — evidence in the diff that the predicate is satisfied
 > - PARTIAL — some evidence but incomplete
 > - FAIL — no evidence or contradicting evidence
