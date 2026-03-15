@@ -1,5 +1,11 @@
 # Changelog
 
+## captura-adhoc — PR #6 — 2026-03-15
+**Type:** feat
+**Node:** propor-predicados/captura-adhoc
+**Commit:** `git show a338844`
+**What:** New `/fractal:propose` skill for bottom-up predicate capture. Human can propose a predicate at any time and the agent helps position it in the tree. New `scripts/list-insertion-points.sh` enumerates valid insertion positions. Plugin version bumped to 0.5.4.
+
 ## geracao-inicial — PR #5 — 2026-03-15
 **Type:** feat
 **Node:** engineering-standards/standards-pra-mim/geracao-inicial
