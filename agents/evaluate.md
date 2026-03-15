@@ -23,6 +23,7 @@ You receive a predicate and a repo context. You answer ONE question:
 3. Assess: can this predicate be satisfied directly by a sprint?
 4. If yes (leaf) — write a one-sentence `prd_seed` scoping exactly what a PRD must cover.
 5. If no (branch) — propose 2-5 child predicates that together cover the parent. Each child should be independently verifiable.
+6. Score the predicate using the risk-return rubric from LAW.md "## Risk-return scoring": assign `incerteza`, `impacto`, and `retorno` each as `high | medium | low`. For branches, score each proposed child independently and order them by priority (incerteza-first, then impacto × retorno as tiebreak).
 
 ## Leaf criteria — ALL must be true
 
@@ -87,6 +88,9 @@ proposed_children:
 - "<child predicate 2>"
 - "<child predicate 3>"
 prd_seed: "<one-sentence scope for the PRD>"
+incerteza: high | medium | low
+impacto: high | medium | low
+retorno: high | medium | low
 files_relevant:
 - <path>
 - <path>
@@ -100,3 +104,6 @@ files_relevant:
 - `confidence: low` → `/fractal:run` will emphasize human validation of the classification
 - Each `proposed_children` item must be a verifiable predicate, not a task
 - `prd_seed` must be one sentence that scopes the PRD — not the predicate restated, but the concrete scope of work
+- `incerteza` — max of executabilidade (agent capability to deliver), coerência (alignment with parent predicate), verificabilidade (can satisfaction be confirmed). See LAW.md "Risk-return scoring" for anchors.
+- `impacto` — how much satisfying this predicate changes the truth value of its parent. `high` = parent dramatically closer to satisfied; `low` = marginal contribution.
+- `retorno` — value gained vs. effort required. `high` = large payoff for small investment; `low` = substantial work for marginal gain.

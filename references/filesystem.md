@@ -100,6 +100,9 @@ proposed_children:                    # branch only — YAML list
   - "child predicate 1"
   - "child predicate 2"
 prd_seed: "one-sentence PRD scope"   # leaf only
+incerteza: high | medium | low        # risk-return: max(executabilidade, coerência, verificabilidade)
+impacto: high | medium | low          # risk-return: how much satisfying this moves the parent
+retorno: high | medium | low          # risk-return: value gained vs. effort required
 created: 2026-03-15
 ---
 
