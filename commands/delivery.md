@@ -123,8 +123,6 @@ Report what was loaded:
 - If standards.md exists: `Standards: loaded from .claude/standards.md (N fields)` — count non-empty STD_* variables
 - If not: `Standards: not found, using project.md defaults`
 
-Standards fields take precedence over project.md for any overlapping values. If standards.md doesn't exist, all behavior falls back to project.md (no breakage).
-
 ### Parse the Execution DAG
 
 Read the `## Execution DAG` section from plan.md and extract:
