@@ -128,12 +128,8 @@ detect_test() {
 detect_lint() {
   local val=""
   # 1. .eslintrc* or .eslintignore
-  if compgen -G "$TARGET/.eslintrc*" > /dev/null 2>&1; then
+  if compgen -G "$TARGET/.eslintrc*" > /dev/null 2>&1 || [ -f "$TARGET/.eslintignore" ]; then
     detected "lint" "npx eslint ." ".eslintrc"
-    return
-  fi
-  if [ -f "$TARGET/.eslintignore" ]; then
-    detected "lint" "npx eslint ." ".eslintignore"
     return
   fi
   # 2. package.json scripts.lint
