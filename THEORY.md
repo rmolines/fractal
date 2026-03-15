@@ -189,4 +189,4 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 
 The implementation is operational as a Claude Code plugin. The on-disk tree format lives in `.fractal/` with `root.md` and `predicate.md` per node. `view.sh` generates an HTML dashboard for visualization. Model delegation is active: Opus orchestrates, Sonnet executes via subagents. Git integration uses worktrees for isolation with full commit/push/PR flow.
 
-The full skill chain is available: `/fractal`, `/fractal:recurse`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:try`.
+The skill chain: `/fractal:init` (bootstrap), `/fractal` (idempotent state machine), `/fractal:try`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:doctor` (tree validation).

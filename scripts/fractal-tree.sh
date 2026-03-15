@@ -152,17 +152,46 @@ render_one_tree() {
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
-ARG="${1:-.fractal}"
+ARG="${1:-}"
 ARG="${ARG%/}"
 
+# No argument: auto-discover single tree in .fractal/
+if [ -z "$ARG" ]; then
+  if [ -d ".fractal" ]; then
+    ARG=".fractal"
+  else
+    echo "Error: no .fractal/ directory found" >&2
+    exit 1
+  fi
+fi
+
+# Prefix resolution: if arg isn't a dir, try .fractal/<arg>
 if [ ! -d "$ARG" ]; then
-  echo "Error: directory not found: $ARG" >&2
-  exit 1
+  if [ -d ".fractal/$ARG" ]; then
+    ARG=".fractal/$ARG"
+  else
+    echo "Error: directory not found: $ARG (also tried .fractal/$ARG)" >&2
+    exit 1
+  fi
 fi
 
 # If the arg itself has a root.md, render it as a single tree
 if [ -f "$ARG/root.md" ]; then
   render_one_tree "$ARG"
+  exit 0
+fi
+
+# Single-tree auto-discovery: if exactly one child tree, enter it directly
+SINGLE_TREE=""
+TREE_COUNT=0
+for d in "$ARG"/*/; do
+  if [ -f "${d}root.md" ]; then
+    SINGLE_TREE="${d%/}"
+    TREE_COUNT=$((TREE_COUNT + 1))
+  fi
+done
+if [ "$TREE_COUNT" -eq 1 ] && [ -n "$SINGLE_TREE" ]; then
+  render_one_tree "$SINGLE_TREE"
   exit 0
 fi
 

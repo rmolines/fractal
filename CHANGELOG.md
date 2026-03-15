@@ -1,5 +1,10 @@
 # Changelog
 
+## fractal-ux-refactor — 2026-03-15
+**Type:** feat (breaking)
+**What:** v0.4.0 — Unified `/fractal` as idempotent state machine (merged `fractal.md` + `recurse.md`). New `/fractal:init` bootstrap skill (Phase 0 + tree creation). New `/fractal:doctor` tree validation skill. Single-tree constraint (one tree per repo). Sprint cycle formalized in LAW.md. Scripts auto-discover single tree without arguments. XState-inspired statechart as canonical spec.
+**Breaking:** `/fractal:recurse` removed — use `/fractal` directly. Bootstrap via `/fractal:init`.
+
 ## recurse-and-evaluate — 2026-03-15
 **Type:** feat
 **What:** Added /fractal:recurse command (recursive state machine that evaluates, executes, or subdivides predicates) with evaluate subagent (finds largest confident sub-predicate and assesses sprint-fitness). New active-predicate.sh helper script. Plugin version bumped to 0.3.1.

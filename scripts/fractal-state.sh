@@ -2,18 +2,40 @@
 set -euo pipefail
 
 # fractal-state.sh — read fractal tree state from filesystem
-# Usage: bash scripts/fractal-state.sh <tree-path>
+# Usage: bash scripts/fractal-state.sh [tree-path]
+#   No argument: auto-discovers the single tree in .fractal/
 
 if [ $# -lt 1 ]; then
-  echo "Usage: bash scripts/fractal-state.sh <tree-path>" >&2
-  exit 1
-fi
+  # Auto-discover single tree in .fractal/
+  if [ ! -d ".fractal" ]; then
+    echo "state: error" >&2
+    exit 1
+  fi
+  FOUND=()
+  for d in .fractal/*/; do
+    [ -f "${d}root.md" ] && FOUND+=("${d%/}")
+  done
+  if [ "${#FOUND[@]}" -eq 1 ]; then
+    TREE_PATH="${FOUND[0]}"
+  elif [ "${#FOUND[@]}" -eq 0 ]; then
+    echo "state: error" >&2
+    exit 1
+  else
+    echo "Error: multiple trees found in .fractal/ — run /fractal:doctor" >&2
+    exit 1
+  fi
+else
+  TREE_PATH="${1%/}"  # strip trailing slash
 
-TREE_PATH="${1%/}"  # strip trailing slash
-
-if [ ! -d "$TREE_PATH" ]; then
-  echo "Error: tree path does not exist: $TREE_PATH" >&2
-  exit 1
+  # Resolve: if not a directory, try .fractal/ prefix
+  if [ ! -d "$TREE_PATH" ]; then
+    if [ -d ".fractal/$TREE_PATH" ]; then
+      TREE_PATH=".fractal/$TREE_PATH"
+    else
+      echo "Error: tree path does not exist: $TREE_PATH (also tried .fractal/$TREE_PATH)" >&2
+      exit 1
+    fi
+  fi
 fi
 
 ROOT_MD="$TREE_PATH/root.md"

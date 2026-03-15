@@ -26,7 +26,7 @@ the plan, the progress log, and the session state. You don't maintain anything
 separately.
 
 ```
-$ /fractal add billing to the app
+$ /fractal:init add billing to the app
 
 > Before I write the predicate: one-time payments, subscriptions, or both?
 
@@ -108,13 +108,14 @@ No database. No JSON. `ls` shows the tree. `cat` shows where you are.
 
 The plugin installs a chain of skills into Claude Code:
 
-- `/fractal` — entry point. State a goal or resume work.
-- `/fractal:recurse` — the recursive state machine. Evaluates the active predicate, executes it, or subdivides it.
+- `/fractal:init` — bootstrap. Extract an objective, create the tree, hand off to `/fractal`.
+- `/fractal` — idempotent state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge.
 - `/fractal:try` — fast iteration for small changes that don't need the full cycle.
 - `/fractal:planning` — transforms a predicate into an executable plan.
 - `/fractal:delivery` — orchestrates subagents to execute the plan.
 - `/fractal:review` — validates the implementation against the predicate.
 - `/fractal:ship` — PR, CI, deploy, cleanup.
+- `/fractal:doctor` — validates tree integrity and optionally fixes inconsistencies.
 
 ## Full spec
 

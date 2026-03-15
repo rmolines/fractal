@@ -51,6 +51,17 @@ The tree grows lazy — one child at a time. After a child is satisfied, the par
 
 Discovery is not a separate phase — it is the recursion itself.
 
+### The sprint cycle
+
+`planning → delivery → review → ship` is the atomic execution unit for complex predicates. These four skills form a closed cycle — they are always invoked in sequence by `/fractal` when `cycle_can_satisfy(predicate)` is true.
+
+- `/fractal:planning` — predicate → executable plan with verifiable deliverables
+- `/fractal:delivery` — plan → subagent execution in parallel batches
+- `/fractal:review` — results → decision gate (back-to-planning | back-to-delivery | approved)
+- `/fractal:ship` — approved code → PR, CI, deploy, cleanup
+
+The cycle is internal to the primitive. From the tree's perspective: one node, one predicate, one result. Parallelism within delivery is an optimization, not a structural change.
+
 ### Goal extraction
 
 Precondition of the primitive. Before the first `fractal()` call, the agent invests maximum energy in:
@@ -72,7 +83,7 @@ Rejection on proposal → agent proposes another predicate. Rejection on result 
 
 The mechanism that drives the branching decisions in the primitive. An evaluate subagent receives a predicate and the full repo context. It answers one question: "What is the largest sub-predicate I'm confident will move us closest to satisfying the parent, and does it fit in one sprint?"
 
-Its output determines the branch taken: if the predicate is unachievable → prune; if it fits a try or a full cycle → execute; if it's too large → recurse with the proposed sub-predicate. Evaluate is the intelligence inside the conditional — everything else in the primitive is structure.
+Its output determines the branch taken: if the predicate is unachievable → prune; if it fits a try or a full cycle → execute; if it's too large → subdivide with the proposed sub-predicate. Evaluate is the intelligence inside the conditional — everything else in the primitive is structure.
 
 ## Definitions
 
@@ -86,7 +97,7 @@ Its output determines the branch taken: if the predicate is unachievable → pru
 
 **Active node:** there is always exactly one predicate being worked on per tree. A new session reads the tree, finds the active node, and continues. It is the complete state of the session.
 
-**Tree:** an independent goal with its own root and active node. A repo can contain multiple trees in `.fractal/`, each operating independently. Trees do not reference each other.
+**Tree:** the single predicate tree for a repository. Each repo has at most one tree under `.fractal/`. If a sub-predicate falls outside the scope of the root predicate, either redefine the root (objective mutation) or discard the sub-predicate. Tree creation and objective mutation are handled by `/fractal:init`.
 
 **Pruned:** a predicate the agent recognized as unachievable. Permanent at that node, but does not kill the parent — it forces re-evaluation and generation of another path.
 
@@ -100,8 +111,8 @@ There is no plan separate from the goal. The root goal is the first predicate. E
 ### 2. Reactive, not contractual
 There is no plan as contract. If the root goal changes, a new root node is created in the tree. The previous tree persists as history, but the recursion restarts from the new root. Nothing is lost, and the depth corrects itself.
 
-### 3. One active node per tree
-Each tree has exactly one predicate being worked on. A repo can have multiple independent trees. Delegation changes the executor of the node, it does not create parallel nodes. Parallelism is internal optimization of the execution cycle.
+### 3. One tree per repo, one active node per tree
+Each repo has at most one predicate tree. Each tree has exactly one predicate being worked on. Delegation changes the executor of the node, it does not create parallel nodes. Parallelism is internal optimization of the execution cycle.
 
 ### 4. Delegation by capability
 The predicate determines the executor. Abstract predicates → more capable model. Atomic predicates → cheaper model. "Who can satisfy this predicate?" is the only criterion.
