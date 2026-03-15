@@ -22,6 +22,17 @@ Variables come from the pre-loaded State section. If state is not yet loaded (e.
 
 IMPORTANT: The header must be plain text. No markdown formatting (no **, ##, *, etc.) in the question string. Emojis are fine as visual anchors.
 
+### Formatting rules for AskUserQuestion
+
+- **Question leads.** The actual question comes immediately after the header — not buried at the end. Context after, not before.
+- **header field** must be a short action-oriented label: "Foco", "Execucao", "Validacao", "Subdivisao", "Poda" — not a description of what the question is about.
+- **Children status** (when relevant): use a compact inline format with visual indicators:
+  `child-name ✅ | child-name ⏳ candidate | child-name ⏳ pending`
+  Never describe children status in prose.
+- **No redundancy.** State each fact once. Don't explain the same status twice.
+- **Density.** Max 4 lines between header and question. Compress context, don't narrate it.
+- **Concrete options.** Avoid open-ended "o que fazer?" — provide labeled choices (e.g., "Confirma? (sim/nao)", numbered candidates, yes/no).
+
 You operate the recursive predicate primitive. Read `LAW.md` first — it is
 the complete specification. This skill is the operational state machine.
 
@@ -126,9 +137,17 @@ Parse the output:
 - `selected_node: none` → Print "Nenhum nó pending encontrado." STOP.
 - Otherwise → extract `selected_node` and `selected_predicate`.
 
-Use `AskUserQuestion`:
+Use `AskUserQuestion` (header: "Foco"):
 
-> "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nPróximo foco sugerido: '<selected_predicate>' (<selected_node>). Confirma?"
+```
+📍 <breadcrumb> | <state>
+🎯 <active_predicate>
+
+Focar em: "<selected_predicate>" (<selected_node>)?
+Selecionado por: <reason from select-next-node output>
+
+Confirma? (sim / escolher outro)
+```
 
 - **Confirmed** → create session lock for the selected node: `bash "$FRACTAL_SCRIPTS/session-lock.sh" create <selected_node>`. Then update `active_node` in `root.md` to `selected_node`. Invoke `/fractal:run`. STOP.
 - **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Create session lock: `bash "$FRACTAL_SCRIPTS/session-lock.sh" create <chosen_node>`. Update `active_node` in `root.md` to the human's chosen path. Invoke `/fractal:run`. STOP.
@@ -147,10 +166,12 @@ bash "$FRACTAL_SCRIPTS/fractal-tree.sh"
 Print:
 
 ```
-<breadcrumb>
-Predicado: <active_predicate>
-Estado: <state> | Filhos: <children_satisfied>/<children_total>
+📍 <breadcrumb> | <state>
+🎯 <active_predicate>
+Filhos: <child-name> ✅ | <child-name> ⏳ candidate | <child-name> ⏳ pending
 ```
+
+(Omit the Filhos line if there are no children. Replace each entry with the actual child slug and its status icon: ✅ satisfied, 🔴 pruned, ⏳ candidate or pending.)
 
 If notes exist in active_node's predicate.md → read them (context from prior session).
 If `.fractal/learnings.md` exists → read it (calibrate proposals).
@@ -254,21 +275,20 @@ Each candidate has:
 The one that, once satisfied, most reduces uncertainty about the parent.
 Not the easiest. Not the most important. The most clarifying.
 
-**Step 3 — Present to human:**
+**Step 3 — Present to human** (header: "Subdivisao"):
 
 ```
 📍 <breadcrumb> | <state>
 🎯 <active_predicate>
 
-O predicado "<parent>" precisa de subdivisao.
+Qual sub-predicado focar primeiro?
 
-Candidatos:
-1. * "<selected>" — <why this most reduces uncertainty>
+1. ★ "<selected>" — <why this most reduces uncertainty>
 2.   "<candidate 2>" — <rationale>
 3.   "<candidate 3>" — <rationale>
 [4-5 if generated]
 
-Recomendo o #1. Aceita, ou prefere outro?
+(★ = recomendado. Responda com numero ou descreva outro.)
 ```
 
 **Step 4 — Persist ALL candidates BEFORE acting:**
@@ -287,7 +307,18 @@ active child, keep agent's as candidates, capture learning in `learnings.md`.
 
 After patch or sprint completes and human has seen the result.
 
-Ask: "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nO predicado foi satisfeito?"
+Use `AskUserQuestion` (header: "Validacao"):
+
+```
+📍 <breadcrumb> | <state>
+🎯 <active_predicate>
+
+O predicado foi satisfeito?
+Entregue: <one-line summary of what was done>
+
+(sim / nao — se nao, descreva o que faltou)
+```
+
 - **Yes** → write `status: satisfied` in active node's `predicate.md`. → go to step 6 (ASCEND).
 - **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
 
