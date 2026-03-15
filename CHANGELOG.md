@@ -1,5 +1,11 @@
 # Changelog
 
+## contexto-estruturado-gates — PR #8 — 2026-03-15
+**Type:** feat
+**Node:** contexto-hitl-sessoes-paralelas/contexto-estruturado-gates
+**Commit:** `git show 8a6c94c`
+**What:** Structured context headers in all HITL gates. Every AskUserQuestion across 7 skills now shows 📍 breadcrumb | state and 🎯 active predicate, so a human context-switching between parallel sessions can orient instantly. Prose gates in sprint-cycle skills (planning, delivery, review, ship, patch) converted to formal AskUserQuestion calls with options. Plugin version bumped to 0.5.6.
+
 ## guardrail-sessoes-paralelas — PR #7 — 2026-03-15
 **Type:** feat
 **Node:** guardrail-sessoes-paralelas
