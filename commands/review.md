@@ -52,6 +52,17 @@ PLAN="${NODE_DIR}/plan.md"
 
 If $ARGUMENTS is empty: read `.fractal/root.md` → get `active_node`.
 
+After reading plan.md, load standards if present:
+
+```bash
+STANDARDS="$REPO_ROOT/.claude/standards.md"
+if [ -f "$STANDARDS" ]; then
+  STD_MAX_LINES=$(grep "^max-lines-per-file:" "$STANDARDS" | awk '{print $2}')
+  STD_SIMPLIFY=$(grep "^simplify-after-delivery:" "$STANDARDS" | awk '{print $2}')
+  REVIEW_CRITERIA=$(awk '/^## Review/{found=1; next} found && /^- /{print} found && /^##/{exit}' "$STANDARDS")
+fi
+```
+
 Read in parallel:
 - `predicate.md` — the acceptance condition (replaces PRD)
 - `plan.md` — deliverable list, acceptance criteria
@@ -121,6 +132,18 @@ Agent(
 >
 > FRs are the primary acceptance gate. If all FRs PASS, the predicate is likely satisfied.
 > If any FR FAILs, the predicate is NOT satisfied regardless of other signals.
+>
+> **Engineering standards (if loaded from .claude/standards.md):**
+> <REVIEW_CRITERIA list, or "No standards.md found">
+>
+> If engineering standards are provided:
+> - Evaluate each criterion against the diff
+> - Include in output as a "### Engineering Standards" table
+> - Standards violations are not blocking but should be flagged as concerns
+>
+> If `simplify-after-delivery` is `true` in standards.md: evaluate whether the delivered code introduced unnecessary complexity — redundant abstractions, over-engineered solutions, or patterns that could be expressed more simply.
+>
+> If `max-lines-per-file` is set in standards.md: check whether any file touched in the diff exceeds that line count limit. Flag violations as concerns.
 >
 > **Evaluate the following:**
 >
