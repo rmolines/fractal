@@ -1,7 +1,7 @@
 {
   "name": "fractal",
-  "description": "Recursive predicate primitive for human+agent collaboration. Planning, delivery, review, ship, and try — operating on .fractal/ node directories within any project repo.",
-  "version": "0.4.0",
+  "description": "OpenPredicaTree — recursive predicate primitive with branch/leaf classification, discovery phase, and PRD-driven sprint cycle for human+agent collaboration.",
+  "version": "0.5.1",
   "author": {
     "name": "rmolines"
   }

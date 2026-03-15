@@ -50,6 +50,29 @@ HOT_FILES=$(awk '/^## Hot files/{found=1; next} found && /^- /{print substr($0,3
 
 Fallback: `CLAUDE.md`. If neither found: ask the user for build/test commands.
 
+### Load standards.md overrides
+
+```bash
+STANDARDS="$REPO_ROOT/.claude/standards.md"
+if [ -f "$STANDARDS" ]; then
+  STD_BUILD=$(grep "^build:" "$STANDARDS" | sed 's/^build: //')
+  STD_TEST=$(grep "^test:" "$STANDARDS" | sed 's/^test: //')
+  STD_LINT=$(grep "^lint:" "$STANDARDS" | sed 's/^lint: //')
+  STD_TYPECHECK=$(grep "^type-check:" "$STANDARDS" | sed 's/^type-check: //')
+  STD_SMOKE=$(grep "^smoke:" "$STANDARDS" | sed 's/^smoke: //')
+  STD_FORMAT=$(grep "^format:" "$STANDARDS" | sed 's/^format: //')
+  STD_COAUTHOR=$(grep "^co-author:" "$STANDARDS" | sed 's/^co-author: //')
+  STD_PLATFORM=$(grep "^platform:" "$STANDARDS" | sed 's/^platform: //')
+  STD_VERIFY=$(grep "^verify:" "$STANDARDS" | sed 's/^verify: //')
+  STD_CI_REQUIRED=$(grep "^ci-required:" "$STANDARDS" | awk '{print $2}')
+  PROTECTED_BRANCHES=$(awk '/^protected-branches:/{found=1; next} found && /^- /{print substr($0,3)} found && /^[^-]/{exit}' "$STANDARDS")
+fi
+# standards.md overrides project.md when present
+BUILD_CMD=${STD_BUILD:-$BUILD_CMD}
+TEST_CMD=${STD_TEST:-$TEST_CMD}
+SMOKE_CMD=${STD_SMOKE:-$SMOKE_CMD}
+```
+
 ### Detect docs mode
 
 ```bash
@@ -83,6 +106,10 @@ $TEST_CMD
 ```
 
 If either fails: **stop**. Show the full output. Never create a PR with a broken build.
+
+Additional gates from standards.md (if set):
+- If `STD_LINT` is set: run `$STD_LINT`. Failure = stop.
+- If `STD_TYPECHECK` is set: run `$STD_TYPECHECK`. Failure = stop.
 
 ---
 
@@ -177,6 +204,8 @@ HOT_FILES_TOUCHED=$(git diff origin/$MAIN_BRANCH...HEAD --name-only | grep -Fxf 
 | `LINES < 150` and `HOT_FILES_TOUCHED == 0` | **Fast** — merge directly |
 | Otherwise | **Standard** — PR with CI |
 
+If `STD_CI_REQUIRED` is `true` (from standards.md): always use **Standard** path, regardless of line count or hot files. Wait for CI before merging.
+
 ### Stage and commit
 
 Stage all relevant changes. Commit message format:
@@ -187,6 +216,20 @@ feat(<node-slug>): D<N> — <title>
 - <detail 2>
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+```
+
+If `STD_COAUTHOR` is set: use `$STD_COAUTHOR` in the `Co-Authored-By` trailer instead of the default.
+If `STD_FORMAT` is `conventional`: validate that the commit message follows Conventional Commits format (`type(scope): description`). If it doesn't match, fix it before committing.
+
+### Protected branch check
+
+If `PROTECTED_BRANCHES` is set: before pushing, check if the target branch (`$MAIN_BRANCH`) is in the list. If it is, block direct push and require a PR — never push directly to a protected branch.
+
+```bash
+if echo "$PROTECTED_BRANCHES" | grep -qx "$MAIN_BRANCH"; then
+  # Target branch is protected — force Standard path with PR
+  FEATURE_BRANCH="${FEATURE_BRANCH:-feat/$NODE_SLUG}"
+fi
 ```
 
 ### Hot file preflight
@@ -267,8 +310,8 @@ If not specified: ask the user. **Never declare "in production" without confirmi
 
 ### Smoke test
 
-Use `$SMOKE_CMD` from project.md.
-If not found: ask. **Never invent a generic smoke test.**
+Use `$SMOKE_CMD` from project.md. If `STD_VERIFY` is set in standards.md, it overrides `$SMOKE_CMD` as the post-deploy health check.
+If neither is found: ask. **Never invent a generic smoke test.**
 If it fails: investigate logs before escalating.
 
 ---

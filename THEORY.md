@@ -20,23 +20,25 @@ root_predicate ← extract_goal(human)  // precondition, not part of the primiti
 fractal(root_predicate)
 
 fractal(predicate):
+  discovery ← discover(predicate)  // evaluator classifies branch vs leaf
+
   if is_unachievable(predicate):
     prune(predicate)
     return pruned
 
-  else if try_can_satisfy(predicate):
-    try(predicate)
-    human validates → satisfied | fractal(predicate)
+  if discovery.node_type == leaf:
+    prd ← specify(predicate, discovery.prd_seed)
+    human validates prd
 
-  else if cycle_can_satisfy(predicate):
-    cycle(predicate)  // planning → delivery → review → ship
-    human validates → satisfied | fractal(predicate)
+    if patch_can_satisfy(prd):
+      patch(prd)
+      human validates → satisfied | fractal(predicate)
+    else:
+      cycle(prd)  // planning → delivery → review → ship
+      human validates → satisfied | fractal(predicate)
 
-  else:
-    // pick the sub-predicate that, once satisfied, reduces the most uncertainty
-    // about how to satisfy the parent — not the easiest, not the most
-    // important, but the one that best clarifies the path forward
-    child ← propose_sub_predicate
+  else:  // branch
+    child ← select_best(discovery.proposed_children)
     human validates proposal:
       if accepted → fractal(child), then fractal(predicate)
       if rejected → fractal(predicate)  // propose another child
@@ -110,7 +112,7 @@ When the agent recognizes that a predicate is unachievable, it prunes the node. 
 ## Two execution modes
 
 The base case has two modes, and the agent decides which:
-- **Try:** trivial predicates. Implement, validate, approve or discard.
+- **Patch:** trivial predicates. Implement, validate, approve or discard.
 - **Full cycle:** complex predicates. Planning → delivery → review → ship.
 
 The Launchpad cycle survives as the execution engine in the base case. Fractal replaces the planning/hierarchy layer (mission/stage/module), but the execution cycle (planning → delivery → review → ship) is the atomic unit of work for complex predicates.
@@ -187,6 +189,6 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 
 ## Current state
 
-The implementation is operational as a Claude Code plugin. The on-disk tree format lives in `.fractal/` with `root.md` and `predicate.md` per node. `view.sh` generates an HTML dashboard for visualization. Model delegation is active: Opus orchestrates, Sonnet executes via subagents. Git integration uses worktrees for isolation with full commit/push/PR flow.
+The implementation is operational as a Claude Code plugin. The on-disk tree format lives in `.fractal/` with `root.md` and `predicate.md` per node. Nodes are classified as branch (composite) or leaf (executable) via a discovery phase that writes `discovery.md`. Leaf nodes get `prd.md` before sprint. `view.sh` generates an HTML dashboard for visualization. Model delegation is active: Opus orchestrates, Sonnet executes via subagents. Git integration uses worktrees for isolation with full commit/push/PR flow. Future direction: OpenServer as programmatic state machine management layer.
 
-The skill chain: `/fractal:init` (bootstrap), `/fractal` (idempotent state machine), `/fractal:try`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:doctor` (tree validation).
+The skill chain: `/fractal:init` (bootstrap), `/fractal` (idempotent state machine with discovery), `/fractal:patch`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:doctor` (tree validation).

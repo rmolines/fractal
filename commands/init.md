@@ -100,6 +100,10 @@ created: <YYYY-MM-DD>
 Previous roots are recorded here when the objective mutates.
 ```
 
+**Note:** Root nodes are always branch nodes — they are satisfied by the composition of
+their children, not by a sprint. No `discovery.md` is written at init time. The first
+`/fractal` invocation will trigger discovery on the root or its first child.
+
 4. Confirm to user: "Arvore criada em .fractal/<slug>/."
 
 5. Invoke `/fractal`. STOP.

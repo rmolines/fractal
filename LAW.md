@@ -1,4 +1,4 @@
-# The Fractal Law
+# The OpenPredicaTree Law
 
 ## The primitive
 
@@ -10,28 +10,31 @@ root_predicate ← extract_goal(human)  // precondition, not part of the primiti
 fractal(root_predicate)
 
 fractal(predicate):
-  // this evaluation IS discovery — the agent reasoning about the predicate
+  discovery ← discover(predicate)  // evaluator classifies the node
 
   if is_unachievable(predicate):
     prune(predicate)
     return pruned
 
-  else if try_can_satisfy(predicate):
-    try(predicate)
-    human validates → satisfied | fractal(predicate)
+  if discovery.node_type == leaf:
+    prd ← specify(predicate, discovery.prd_seed)
+    human validates prd
 
-  else if cycle_can_satisfy(predicate):
-    planning(predicate)
-    delivery(predicate)
-    review(predicate)
-    ship(predicate)
-    human validates → satisfied | fractal(predicate)
+    if patch_can_satisfy(prd):
+      patch(prd)
+      human validates → satisfied | fractal(predicate)
 
-  else:
-    // generate 3-5 candidates, pick the one that reduces uncertainty most
+    else:
+      planning(prd)
+      delivery(prd)
+      review(prd)
+      ship(prd)
+      human validates → satisfied | fractal(predicate)
+
+  else:  // branch
+    // evaluator proposed 3-5 candidates during discovery
     // unchosen candidates persist in the hierarchy as hypotheses
-    // for future discovery rounds
-    candidates ← generate_sub_predicates(predicate)
+    candidates ← discovery.proposed_children
     child ← select_best(candidates)
     persist_as_candidates(candidates - child)
     human validates proposal:
@@ -45,19 +48,18 @@ The tree grows lazy — one child at a time. After a child is satisfied, the par
 
 ### Mapping to the execution cycle
 
-- **Discovery** = the primitive itself. Every time `fractal()` runs, it is doing discovery: evaluating the predicate, deciding whether it's atomic or needs subdivision, proposing sub-predicates.
-- **Planning → Delivery → Review → Ship** = the atomic execution unit for complex predicates. Satisfies the predicate.
-- **Try** = shortcut for predicates too trivial for the full cycle.
-
-Discovery is not a separate phase — it is the recursion itself.
+- **Discovery** = a formalized phase. The evaluator examines the predicate and repo context, classifies the node as branch or leaf, and writes `discovery.md`. For branches, it proposes candidate children. For leaves, it provides a `prd_seed` — the one-sentence scope of the PRD.
+- **Specify** = the step that turns a leaf's `prd_seed` into a full `prd.md` with acceptance criteria, out-of-scope, and constraints. Human validates before sprint begins.
+- **Planning → Delivery → Review → Ship** = the atomic execution unit for leaf predicates. Reads `prd.md` as primary requirement.
+- **Patch** = shortcut for leaf predicates too trivial for the full cycle.
 
 ### The sprint cycle
 
-`planning → delivery → review → ship` is the atomic execution unit for complex predicates. These four skills form a closed cycle — they are always invoked in sequence by `/fractal` when `cycle_can_satisfy(predicate)` is true.
+`planning → delivery → review → ship` is the atomic execution unit for leaf predicates. These four skills form a closed cycle — they are always invoked in sequence by `/fractal` when a leaf node's PRD requires more than a patch.
 
-- `/fractal:planning` — predicate → executable plan with verifiable deliverables
+- `/fractal:planning` — prd.md → executable plan with verifiable deliverables
 - `/fractal:delivery` — plan → subagent execution in parallel batches
-- `/fractal:review` — results → decision gate (back-to-planning | back-to-delivery | approved)
+- `/fractal:review` — results → decision gate (back-to-planning | back-to-delivery | back-to-discovery | approved)
 - `/fractal:ship` — approved code → PR, CI, deploy, cleanup
 
 The cycle is internal to the primitive. From the tree's perspective: one node, one predicate, one result. Parallelism within delivery is an optimization, not a structural change.
@@ -79,11 +81,15 @@ The human validates at two moments:
 
 Rejection on proposal → agent proposes another predicate. Rejection on result → agent redoes the execution. These are not special cases — they are natural re-evaluations of the primitive.
 
-### Evaluate
+### Evaluate (Discovery)
 
-The mechanism that drives the branching decisions in the primitive. An evaluate subagent receives a predicate and the full repo context. It answers one question: "What is the largest sub-predicate I'm confident will move us closest to satisfying the parent, and does it fit in one sprint?"
+The mechanism that drives the branching decisions in the primitive. An evaluate subagent receives a predicate and the full repo context. It answers one question: "Is this a branch (composite — satisfied by children) or a leaf (executable — satisfied by a sprint)?"
 
-Its output determines the branch taken: if the predicate is unachievable → prune; if it fits a try or a full cycle → execute; if it's too large → subdivide with the proposed sub-predicate. Evaluate is the intelligence inside the conditional — everything else in the primitive is structure.
+For branches: the evaluator proposes 2-5 candidate child predicates that together cover the parent. Each candidate is independently falsifiable.
+
+For leaves: the evaluator provides a `prd_seed` — one-sentence scope for the PRD that will be written in the specify step.
+
+Its output is persisted as `discovery.md` before routing. The fractal skill reads the classification and routes accordingly: branch → subdivide, leaf → specify → execute. Evaluate is the intelligence inside the conditional — everything else in the primitive is structure.
 
 ## Definitions
 
@@ -93,7 +99,11 @@ Its output determines the branch taken: if the predicate is unachievable → pru
 
 **Root predicate:** the goal extracted from the human. It sits in the useful abstraction window — specific enough to reject irrelevant steps, abstract enough to survive implementation changes.
 
-**Atomic predicate:** one that a try or a full cycle (planning → delivery → review → ship) can satisfy directly. It is the base case of the recursion.
+**Leaf predicate:** a predicate whose scope is clear enough that a PRD can be written and a sprint executed against it. Base case of the recursion. Never has children.
+
+**Branch predicate:** a predicate satisfied when all its children are satisfied. Never has `prd.md`, `plan.md`, or other sprint artifacts. It is a composite — its truth is derived from its parts.
+
+**Discovery:** the formalized evaluation phase. The evaluator examines a predicate, classifies it as branch or leaf, and produces `discovery.md`. This happens once per node. The presence of `discovery.md` indicates the node has been classified.
 
 **Active node:** there is always exactly one predicate being worked on per tree. A new session reads the tree, finds the active node, and continues. It is the complete state of the session.
 
@@ -115,7 +125,7 @@ There is no plan as contract. If the root goal changes, a new root node is creat
 Each repo has at most one predicate tree. Each tree has exactly one predicate being worked on. Delegation changes the executor of the node, it does not create parallel nodes. Parallelism is internal optimization of the execution cycle.
 
 ### 4. Delegation by capability
-The predicate determines the executor. Abstract predicates → more capable model. Atomic predicates → cheaper model. "Who can satisfy this predicate?" is the only criterion.
+The predicate determines the executor. Abstract predicates → more capable model. Leaf predicates → cheaper model. "Who can satisfy this predicate?" is the only criterion.
 
 ## The abstraction window
 

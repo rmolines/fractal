@@ -48,6 +48,25 @@ Read in parallel:
 1. `predicate.md` — the falsifiable condition. This IS the requirement.
 2. `.claude/project.md` — build, test, hot files, stack.
 
+### Load standards
+
+After reading project.md, check for a standards file in the target repo:
+
+```bash
+STANDARDS="$REPO_ROOT/.claude/standards.md"
+if [ -f "$STANDARDS" ]; then
+  STD_BRANCH_PREFIX=$(grep "^branch-prefix:" "$STANDARDS" | sed 's/^branch-prefix: //')
+  STD_STALENESS=$(grep "^staleness-check:" "$STANDARDS" | awk '{print $2}')
+fi
+```
+
+Report: `Standards: loaded (branch-prefix: X, staleness-check: Y)` or `Standards: not found`
+
+If `STD_STALENESS` is `true`: before building the plan, check whether existing plan artifacts in the node directory (e.g. `plan.md`) are older than 7 days. If so, warn:
+`Warning: plan artifacts are >7 days old — consider re-evaluating before continuing`
+
+If `STD_BRANCH_PREFIX` is set: use it as the default branch prefix in all deliverable prompts, overriding any `branch-prefix` from project.md.
+
 ### Load project context
 
 Scan the `.fractal/` tree to understand what has already been built. This provides the agent with awareness of sibling nodes, previous deliveries, and accumulated project state.
