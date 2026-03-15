@@ -91,7 +91,23 @@ Then route:
 - `active_status: satisfied` AND `depth: 0` → Print "Predicado raiz satisfeito." STOP.
 - `active_status: satisfied` OR `active_status: pruned` → go to step 6 (ASCEND).
 - `active_node: "."` AND `root_status` is NOT `satisfied` AND NOT `pruned` → **Session traversal** (see below).
+- `active_node` is NOT `"."` → **check ownership** before proceeding (see below).
 - Otherwise → go to step 2 (SHOW).
+
+#### Ownership check (active_node is not ".")
+
+Another session may have set `active_node` in `root.md`. Before working on it, verify this session owns the lock:
+
+```bash
+FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1)
+bash "$FRACTAL_SCRIPTS/session-lock.sh" check <active_node>
+```
+
+Parse the output:
+
+- `locked: true` AND `pid` ≠ `$PPID` → the node belongs to another live session. **Treat as session traversal** (go to "Session traversal" below).
+- `locked: true` AND `pid` = `$PPID` → this session owns it. → go to step 2 (SHOW).
+- `locked: false` → no lock exists. Claim it: `bash "$FRACTAL_SCRIPTS/session-lock.sh" create <active_node>`. → go to step 2 (SHOW).
 
 #### Session traversal (active_node is ".")
 
