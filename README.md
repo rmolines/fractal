@@ -3,11 +3,11 @@
 One recursive operation. Predicates, not tasks.
 
 You start a project. You write a plan. Three days in, the plan is wrong, the doc
-is stale, and you're keeping two sources of truth in sync — the code and the
+is stale, and you're keeping two sources of truth in sync: the code and the
 document describing what the code was supposed to do.
 
 OpenPredicate is a Claude Code plugin. Instead of a plan that rots, it keeps a
-tree of predicates in `.fractal/`. Each predicate is a falsifiable condition — a
+tree of predicates in `.fractal/`. Each predicate is a falsifiable condition, a
 truth to reach, not a task to check off. The tree doubles as plan, log, and
 session state. `ls` shows the structure. `cat` shows where you are. When a session
 dies and a new one starts, the agent reads the directory and picks up where it
@@ -31,14 +31,14 @@ OpenPredicate makes different bets:
 "Implement auth" is a task. "Users can sign in with Google" is a predicate.
 The difference: when you satisfy a child predicate, that is progress toward
 the parent by definition. No tracking layer needed. And because the tree grows
-one node at a time — re-evaluating the parent after each — the plan can't drift from reality.
+one node at a time, re-evaluating the parent after each, the plan can't drift from reality.
 
 ## What it looks like
 
 ```
 $ /fractal add stripe billing to the app
 
-> Before I write the predicate — one-time payments, subscriptions, or both?
+> Before I write the predicate: one-time payments, subscriptions, or both?
 
 Both. Monthly plans, per-seat pricing.
 
@@ -57,7 +57,7 @@ Yes.
 $ /fractal
 
 > Reading .fractal/stripe-billing/ ...
-> Active node: webhook-handler — plan.md exists, no results.md.
+> Active node: webhook-handler. plan.md exists, no results.md.
 > Picking up at delivery.
 ```
 
@@ -74,7 +74,7 @@ fractal(predicate):
 ```
 
 A predicate is a falsifiable condition. The tree grows one node at a time. After
-a child is satisfied, the parent gets re-evaluated — maybe it's done, maybe it
+a child is satisfied, the parent gets re-evaluated. Maybe it's done, maybe it
 needs another child. Discovery isn't a separate phase. It's the recursion.
 
 ## Install
@@ -96,7 +96,7 @@ If the file exists, add `{"path": "~/git/openpredicate"}` to the `plugins` array
 Start a new session (quit and run `claude` again). `/fractal` will be available
 in any repo.
 
-Commands use the `/fractal` prefix — after the recursive operation at its core.
+Commands use the `/fractal` prefix, after the recursive operation at its core.
 
 ## Skills
 
@@ -107,7 +107,7 @@ You need one command: `/fractal`. It handles the rest.
 | Skill | What it does |
 |---|---|
 | `/fractal` | Start a new objective or resume the active one. Orchestrates planning, delivery, review, and shipping. |
-| `/fractal:try` | Quick path for simple predicates. Runs in an isolated worktree — approve or discard. |
+| `/fractal:try` | Quick path for simple predicates. Isolated worktree, approve or discard. |
 | `/fractal:view` | Opens an HTML dashboard of the predicate tree in the browser. |
 
 **Run internally** (called by `/fractal`):
@@ -142,10 +142,10 @@ what happened and what comes next.
 | Files present | State |
 |---|---|
 | `predicate.md` only | Not started |
-| `plan.md` | Planned — run delivery |
-| `plan.md` + `results.md` | Executed — run review |
-| `plan.md` + `results.md` + `review.md` | Reviewed — validate, then ship |
-| `status: satisfied` in frontmatter | Done — re-evaluate parent |
+| `plan.md` | Planned. Run delivery |
+| `plan.md` + `results.md` | Executed. Run review |
+| `plan.md` + `results.md` + `review.md` | Reviewed. Validate, then ship |
+| `status: satisfied` in frontmatter | Done. Re-evaluate parent |
 
 New session reads the tree and continues where the last one stopped.
 
@@ -164,4 +164,4 @@ right zone.
 
 ## Full spec
 
-[LAW.md](./LAW.md) — the complete spec.
+[LAW.md](./LAW.md), the complete spec.
