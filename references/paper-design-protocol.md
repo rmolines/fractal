@@ -92,6 +92,49 @@ Antes de commitar o HTML no repo:
 
 ---
 
+## Exportação concreta para view.sh
+
+`view.sh` gera HTML completamente inline — CSS, estrutura e JS embutidos num único `cat` heredoc
+que escreve em `/tmp/fractal-view.html`. Não há template externo. Mudanças de design viram
+modificações diretas no heredoc do script.
+
+### Workflow de exportação
+
+1. **`get_computed_styles`** nos elementos-chave do artboard — extraia valores exatos de cor,
+   espaçamento e tipografia.
+2. **`get_jsx`** no componente ou região para capturar a estrutura HTML e os atributos de estilo.
+3. Abra `view.sh` e localize o bloco `<style>` — as variáveis CSS ficam em `:root` nas linhas
+   ~615–691.
+
+### Tradução para view.sh
+
+| Paper output | O que fazer em view.sh |
+|---|---|
+| Cores brutas (hex/rgba) | Atualizar variáveis `--color-*` e `--bg-*` no `:root` |
+| Espaçamentos (px) | Atualizar variáveis `--spacing-*` ou valores inline nas rules |
+| Tipografia (font-size, weight, family) | Atualizar variáveis `--font-*` e rules de `body`, `.node`, etc. |
+| Estrutura HTML nova | Reescrever o trecho equivalente no heredoc de `view.sh` |
+| Inline styles do JSX | Converter para custom properties se o valor for reutilizado; manter inline só se pontual |
+
+**Regra principal:** Paper usa inline styles; `view.sh` usa CSS custom properties. O export
+não é copy-paste — é extração de tokens de design que depois alimentam as variáveis do `:root`.
+
+### O que extrair vs o que adaptar
+
+- **Extrair** — valores concretos: paleta, escala tipográfica, gaps, border-radius, opacidade.
+- **Adaptar** — estrutura HTML (simplificar nesting desnecessário do Paper), nomes de classes/IDs
+  (manter os que `view.sh` já usa), lógica de JS (não vem do Paper).
+
+### Checklist antes de aplicar
+
+- [ ] Variáveis CSS usam os mesmos nomes já definidos no `:root` de `view.sh`
+- [ ] Nenhuma referência externa (fontes, ícones, CDN) foi introduzida
+- [ ] `bash view.sh` executa sem erro e abre `/tmp/fractal-view.html`
+- [ ] Light mode e dark mode verificados (toggle no viewer ou edição manual da variável `--mode`)
+- [ ] HTML resultante é self-contained e legível offline
+
+---
+
 ## Integração com o ciclo fractal
 
 **Quando usar:** qualquer predicate leaf que envolva mudanças de UI/UX no viewer.
