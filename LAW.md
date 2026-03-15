@@ -68,6 +68,12 @@ The human validates at two moments:
 
 Rejection on proposal → agent proposes another predicate. Rejection on result → agent redoes the execution. These are not special cases — they are natural re-evaluations of the primitive.
 
+### Evaluate
+
+The mechanism that drives the branching decisions in the primitive. An evaluate subagent receives a predicate and the full repo context. It answers one question: "What is the largest sub-predicate I'm confident will move us closest to satisfying the parent, and does it fit in one sprint?"
+
+Its output determines the branch taken: if the predicate is unachievable → prune; if it fits a try or a full cycle → execute; if it's too large → recurse with the proposed sub-predicate. Evaluate is the intelligence inside the conditional — everything else in the primitive is structure.
+
 ## Definitions
 
 **Predicate:** a falsifiable condition that, when satisfied, constitutes progress toward the parent predicate. Not a task — a truth to be reached. Action emerges from the predicate.

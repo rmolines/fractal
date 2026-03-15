@@ -29,7 +29,7 @@ fractal(predicate):
     human validates → satisfied | fractal(predicate)
 
   else if cycle_can_satisfy(predicate):
-    cycle(predicate)  // discovery → delivery → review → ship
+    cycle(predicate)  // planning → delivery → review → ship
     human validates → satisfied | fractal(predicate)
 
   else:
@@ -111,9 +111,9 @@ When the agent recognizes that a predicate is unachievable, it prunes the node. 
 
 The base case has two modes, and the agent decides which:
 - **Try:** trivial predicates. Implement, validate, approve or discard.
-- **Full cycle:** complex predicates. Discovery → delivery → review → ship.
+- **Full cycle:** complex predicates. Planning → delivery → review → ship.
 
-The Launchpad cycle survives as the execution engine in the base case. Fractal replaces the planning/hierarchy layer (mission/stage/module), but the execution cycle (discovery → delivery → review → ship) is the atomic unit of work for complex predicates.
+The Launchpad cycle survives as the execution engine in the base case. Fractal replaces the planning/hierarchy layer (mission/stage/module), but the execution cycle (planning → delivery → review → ship) is the atomic unit of work for complex predicates.
 
 Parallelism (multiple subagents) is an internal strategy of the cycle — it increases the capacity to satisfy larger predicates. From the tree's perspective, it is still one node, one predicate, one result.
 
@@ -185,10 +185,8 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 | Cost | Optimization via conservative/aggressive dial + model delegation |
 | Persistence | Predicate tree on disk is the source of truth |
 
-## Next steps (implementation)
+## Current state
 
-- Concrete on-disk tree format
-- Visualization UX for the human
-- Model delegation heuristics
-- Integration with git, tests, CI
-- First prototype: a skill that operates with the primitive
+The implementation is operational as a Claude Code plugin. The on-disk tree format lives in `.fractal/` with `root.md` and `predicate.md` per node. `view.sh` generates an HTML dashboard for visualization. Model delegation is active: Opus orchestrates, Sonnet executes via subagents. Git integration uses worktrees for isolation with full commit/push/PR flow.
+
+The full skill chain is available: `/fractal`, `/fractal:recurse`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:try`.

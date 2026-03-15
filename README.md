@@ -104,6 +104,18 @@ predicate. Which files exist tells the agent what happened and what to do next.
 
 No database. No JSON. `ls` shows the tree. `cat` shows where you are.
 
+## Skills
+
+The plugin installs a chain of skills into Claude Code:
+
+- `/fractal` — entry point. State a goal or resume work.
+- `/fractal:recurse` — the recursive state machine. Evaluates the active predicate, executes it, or subdivides it.
+- `/fractal:try` — fast iteration for small changes that don't need the full cycle.
+- `/fractal:planning` — transforms a predicate into an executable plan.
+- `/fractal:delivery` — orchestrates subagents to execute the plan.
+- `/fractal:review` — validates the implementation against the predicate.
+- `/fractal:ship` — PR, CI, deploy, cleanup.
+
 ## Full spec
 
 [LAW.md](./LAW.md) for the full spec if you want the details.
