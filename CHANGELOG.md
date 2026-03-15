@@ -1,5 +1,11 @@
 # Changelog
 
+## consumo-skills — PR #3 — 2026-03-15
+**Type:** feat
+**Node:** engineering-standards/standards-pra-mim/consumo-skills
+**Commit:** `git show 5fb4858`
+**What:** All 4 sprint skills (planning, delivery, review, ship) now consume `.claude/standards.md` as structured input. Delivery runs lint/type-check gates, validates commit format, checks max-lines. Review injects engineering criteria into evaluator prompt. Planning reads branch-prefix and staleness-check. Ship enforces protected-branches, ci-required, and deploy config overrides. Fallback to project.md when standards.md absent. Plugin version bumped to 0.5.1.
+
 ## fractal-ux-refactor — 2026-03-15
 **Type:** feat (breaking)
 **What:** v0.4.0 — Unified `/fractal` as idempotent state machine (merged `fractal.md` + `recurse.md`). New `/fractal:init` bootstrap skill (Phase 0 + tree creation). New `/fractal:doctor` tree validation skill. Single-tree constraint (one tree per repo). Sprint cycle formalized in LAW.md. Scripts auto-discover single tree without arguments. XState-inspired statechart as canonical spec.
