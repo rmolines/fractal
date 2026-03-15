@@ -106,7 +106,15 @@ their children, not by a sprint. No `discovery.md` is written at init time. The 
 
 4. Confirm to user: "Arvore criada em .fractal/<slug>/."
 
-5. Invoke `/fractal`. STOP.
+5. Check for standards.md:
+
+If no `.claude/standards.md` exists in the repo, use `AskUserQuestion` to offer:
+- Question: "Repo sem standards.md. Gerar draft automático?"
+- Options: "Sim, gerar" / "Pular"
+- If "Sim, gerar" → run `bash scripts/generate-standards.sh --write` via Bash tool
+- If "Pular" → continue
+
+6. Invoke `/fractal`. STOP.
 
 ## Step 5: Mutation path (existing tree)
 
