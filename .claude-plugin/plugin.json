@@ -1,7 +1,7 @@
 {
   "name": "fractal",
   "description": "OpenPredicaTree — recursive predicate primitive with branch/leaf classification, discovery phase, and PRD-driven sprint cycle for human+agent collaboration.",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "author": {
     "name": "rmolines"
   }

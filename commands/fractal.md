@@ -78,7 +78,29 @@ Then route:
 - `state: error` → STOP. Print "Nenhuma arvore encontrada. Execute /fractal:init."
 - `active_status: satisfied` AND `depth: 0` → Print "Predicado raiz satisfeito." STOP.
 - `active_status: satisfied` OR `active_status: pruned` → go to step 6 (ASCEND).
+- `active_node: "."` AND `root_status` is NOT `satisfied` AND NOT `pruned` → **Session traversal** (see below).
 - Otherwise → go to step 2 (SHOW).
+
+#### Session traversal (active_node is ".")
+
+This happens at the start of every new session (or after ASCEND resets the pointer). Find the best pending node and confirm with the human before focusing.
+
+```bash
+FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1)
+bash "$FRACTAL_SCRIPTS/select-next-node.sh"
+```
+
+Parse the output:
+
+- `selected_node: none` → Print "Nenhum nó pending encontrado." STOP.
+- Otherwise → extract `selected_node` and `selected_predicate`.
+
+Use `AskUserQuestion`:
+
+> "Próximo foco sugerido: '<selected_predicate>' (<selected_node>). Confirma?"
+
+- **Confirmed** → update `active_node` in `root.md` to `selected_node`. Invoke `/fractal`. STOP.
+- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Update `active_node` in `root.md` to the human's chosen path. Invoke `/fractal`. STOP.
 
 ### 2. SHOW
 
@@ -241,9 +263,9 @@ Active node is satisfied or pruned. Bubble up.
 - If `active_status: satisfied` → "Predicado raiz satisfeito. Arvore completa." STOP.
 - If `active_status: pruned` → "Predicado raiz podado. Execute /fractal:init para redefinir." STOP.
 
-6b. Update `active_node` in `root.md` to `parent_path` from pre-loaded state.
+6b. Reset `active_node` in `root.md` to `"."`.
 
-6c. Invoke `/fractal`. STOP.
+6c. Print: "Nó [satisfied|pruned]. Ponteiro resetado — próximo /fractal vai sugerir o foco." STOP.
 
 ---
 
