@@ -2,7 +2,7 @@
 # view.sh — generates fractal-view.html from .fractal/ and commands/
 # Run from repo root: bash view.sh
 
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")" && pwd))"
 FRACTAL_DIR="$REPO_ROOT/.fractal"
 COMMANDS_DIR="$REPO_ROOT/commands"
 OUTPUT="/tmp/fractal-view.html"
@@ -50,6 +50,8 @@ derive_state() {
     state="satisfied"
   elif [ "$status" = "pruned" ]; then
     state="pruned"
+  elif [ "$status" = "candidate" ]; then
+    state="candidate"
   elif [ -f "$node_dir/plan.md" ] && [ -f "$node_dir/results.md" ] && [ -f "$node_dir/review.md" ]; then
     state="reviewed"
   elif [ -f "$node_dir/plan.md" ] && [ -f "$node_dir/results.md" ]; then
@@ -67,15 +69,68 @@ derive_state() {
   printf '%s' "$state"
 }
 
+# ── state sort order ──────────────────────────────────────────────────────────
+# Returns numeric sort key for a state string
+state_sort_key() {
+  local state="$1"
+  case "$state" in
+    "active"*)  printf '0' ;;
+    executed)   printf '1' ;;
+    reviewed)   printf '2' ;;
+    planned)    printf '3' ;;
+    candidate)  printf '4' ;;
+    pending)    printf '5' ;;
+    satisfied)  printf '6' ;;
+    pruned)     printf '7' ;;
+    *)          printf '5' ;;
+  esac
+}
+
+# ── state group label ─────────────────────────────────────────────────────────
+state_group_label() {
+  local state="$1"
+  case "$state" in
+    "active"*)  printf 'active' ;;
+    executed)   printf 'executed' ;;
+    reviewed)   printf 'reviewed' ;;
+    planned)    printf 'planned' ;;
+    candidate)  printf 'candidate' ;;
+    pending)    printf 'pending' ;;
+    satisfied)  printf 'done' ;;
+    pruned)     printf 'pruned' ;;
+    *)          printf 'pending' ;;
+  esac
+}
+
+# Canonical group key from state
+state_group_key() {
+  local state="$1"
+  case "$state" in
+    "active"*)  printf 'active' ;;
+    executed)   printf 'inprogress' ;;
+    reviewed)   printf 'inprogress' ;;
+    planned)    printf 'inprogress' ;;
+    candidate)  printf 'candidate' ;;
+    pending)    printf 'pending' ;;
+    satisfied)  printf 'satisfied' ;;
+    pruned)     printf 'pruned' ;;
+    *)          printf 'pending' ;;
+  esac
+}
+
 # ── recursively build tree HTML ──────────────────────────────────────────────
-# render_children <parent_dir_absolute> <parent_rel_path> <active_node>
+# render_children <parent_dir_absolute> <parent_rel_path> <active_node> <depth>
 # outputs HTML to stdout
 render_children() {
   local parent_dir="$1"
   local parent_rel="$2"
   local active_node="$3"
+  local depth="${4:-0}"
 
-  # Iterate immediate child directories
+  # Collect all children with metadata into a temp file for sorting
+  local tmp_entries
+  tmp_entries="$(mktemp)"
+
   for child in "$parent_dir"/*/; do
     [ -d "$child" ] || continue
     local dir_name
@@ -90,55 +145,207 @@ render_children() {
     local pred_file="$child/predicate.md"
     [ -f "$pred_file" ] || continue
 
-    local pred_text status state
+    local pred_text status created state sort_key
     pred_text="$(frontmatter_field "$pred_file" "predicate")"
     status="$(frontmatter_field "$pred_file" "status")"
+    created="$(frontmatter_field "$pred_file" "created")"
     state="$(derive_state "$child" "$child_rel" "$active_node")"
+    sort_key="$(state_sort_key "$state")"
 
-    # Dot class
-    local dot_class="tree-dot"
-    case "$status" in
-      satisfied) dot_class="tree-dot satisfied" ;;
-      pruned)    dot_class="tree-dot pruned" ;;
-      *)
-        case "$state" in
-          "active"*) dot_class="tree-dot active" ;;
-        esac
-        ;;
+    # Replace field separator | with safe placeholder in values
+    local safe_pred safe_state safe_created safe_status
+    safe_pred="${pred_text//|/PIPE}"
+    safe_state="${state//|/PIPE}"
+    safe_created="${created//|/PIPE}"
+    safe_status="${status//|/PIPE}"
+    local safe_child="${child//|/PIPE}"
+    local safe_rel="${child_rel//|/PIPE}"
+
+    printf '%s\n' "${sort_key}|${dir_name}|${safe_pred}|${safe_status}|${safe_created}|${safe_state}|${safe_child}|${safe_rel}" >> "$tmp_entries"
+  done
+
+  # Sort: primary by sort_key, secondary alphabetically by dir_name
+  local sorted_tmp
+  sorted_tmp="$(mktemp)"
+  sort -t'|' -k1,1n -k2,2 "$tmp_entries" > "$sorted_tmp"
+  rm -f "$tmp_entries"
+
+  # Now group-render. We'll write each group into separate temp files, then combine.
+  # Group order tracks which groups appeared in order.
+  local group_order_file
+  group_order_file="$(mktemp)"
+  local groups_dir
+  groups_dir="$(mktemp -d)"
+
+  while IFS='|' read -r sort_key dir_name safe_pred safe_status safe_created safe_state child_dir child_rel; do
+    local gkey
+    gkey="$(state_group_key "$safe_state")"
+    # Track group order
+    if [ ! -f "$groups_dir/$gkey.entries" ]; then
+      printf '%s\n' "$gkey" >> "$group_order_file"
+    fi
+    printf '%s\n' "${sort_key}|${dir_name}|${safe_pred}|${safe_status}|${safe_created}|${safe_state}|${child_dir}|${child_rel}" >> "$groups_dir/$gkey.entries"
+  done < "$sorted_tmp"
+  rm -f "$sorted_tmp"
+
+  local all_html=""
+
+  # Render active node first, standalone, before groups
+  if [ -n "$active_node" ] && [ -f "$groups_dir/active.entries" ]; then
+    while IFS='|' read -r sort_key dir_name safe_pred safe_status safe_created safe_state child_dir child_rel; do
+      local pred_text="$safe_pred"
+      local created="$safe_created"
+      local pred_esc created_esc
+      pred_esc="$(html_escape "$pred_text")"
+      created_esc="$(html_escape "$created")"
+
+      all_html+="      <div class=\"active-node-highlight\">"$'\n'
+      all_html+="        <div class=\"tree-item-header\">"$'\n'
+      all_html+="          <div class=\"tree-dot active\"></div>"$'\n'
+      all_html+="          <span class=\"tree-predicate\">${pred_esc}</span>"$'\n'
+      all_html+="          <span class=\"tree-state active-state\">active</span>"$'\n'
+      if [ -n "$created_esc" ]; then
+        all_html+="          <span class=\"tree-date\">${created_esc}</span>"$'\n'
+      fi
+      all_html+="        </div>"$'\n'
+      local children_output_act
+      children_output_act="$(render_children "$child_dir" "$child_rel" "$active_node" "$((depth+1))")"
+      if [ -n "$children_output_act" ]; then
+        all_html+="        <div class=\"tree-level\">"$'\n'
+        all_html+="${children_output_act}"
+        all_html+="        </div>"$'\n'
+      fi
+      all_html+="      </div>"$'\n'
+    done < "$groups_dir/active.entries"
+  fi
+
+  while IFS= read -r gkey; do
+    # Skip active group — already rendered above
+    [ "$gkey" = "active" ] && continue
+    local entries_file="$groups_dir/$gkey.entries"
+    [ -f "$entries_file" ] || continue
+
+    local count
+    count="$(wc -l < "$entries_file" | tr -d ' ')"
+
+    # Determine group label and CSS class
+    local glabel gcss
+    case "$gkey" in
+      active)     glabel="active"; gcss="group-active" ;;
+      inprogress) glabel="in progress"; gcss="group-inprogress" ;;
+      candidate)  glabel="candidate"; gcss="group-candidate" ;;
+      pending)    glabel="pending"; gcss="group-pending" ;;
+      satisfied)  glabel="done"; gcss="group-satisfied" ;;
+      pruned)     glabel="pruned"; gcss="group-pruned" ;;
+      *)          glabel="$gkey"; gcss="group-pending" ;;
     esac
 
-    # Predicate text class
-    local pred_class="tree-predicate"
-    [ "$status" = "pruned" ] && pred_class="tree-predicate pruned"
+    # Unique ID for collapse toggle (use depth+parent_rel+gkey hash)
+    local gid
+    gid="grp-${depth}-$(printf '%s' "${parent_rel}${gkey}" | tr -dc 'a-zA-Z0-9' | head -c 16)-${count}"
 
-    # State label class
-    local state_class="tree-state"
-    case "$state" in
-      "active"*) state_class="tree-state active-state" ;;
-    esac
-
-    local pred_esc state_esc
-    pred_esc="$(html_escape "$pred_text")"
-    state_esc="$(html_escape "$state")"
-
-    printf '      <div class="tree-item">\n'
-    printf '        <div class="tree-item-header">\n'
-    printf '          <div class="%s"></div>\n' "$dot_class"
-    printf '          <span class="%s">%s</span>\n' "$pred_class" "$pred_esc"
-    printf '          <span class="%s">%s</span>\n' "$state_class" "$state_esc"
-    printf '        </div>\n'
-
-    # Recurse into children
-    local children_output
-    children_output="$(render_children "$child" "$child_rel" "$active_node")"
-    if [ -n "$children_output" ]; then
-      printf '        <div class="tree-level">\n'
-      printf '%s' "$children_output"
-      printf '        </div>\n'
+    # Collapsible for satisfied/pruned
+    local collapsible=0
+    if [ "$gkey" = "satisfied" ] || [ "$gkey" = "pruned" ]; then
+      collapsible=1
     fi
 
-    printf '      </div>\n'
-  done
+    # Group header
+    if [ $collapsible -eq 1 ]; then
+      all_html+="      <div class=\"state-group ${gcss} collapsible\" data-group-id=\"${gid}\">"$'\n'
+      all_html+="        <div class=\"state-group-header\" onclick=\"toggleGroup('${gid}')\">"$'\n'
+      all_html+="          <span class=\"state-group-label\">${glabel}</span>"$'\n'
+      all_html+="          <span class=\"state-group-count\">${count}</span>"$'\n'
+      all_html+="          <span class=\"state-group-toggle\" id=\"toggle-${gid}\">▾</span>"$'\n'
+      all_html+="        </div>"$'\n'
+      all_html+="        <div class=\"state-group-body collapsed\" id=\"body-${gid}\">"$'\n'
+    else
+      all_html+="      <div class=\"state-group ${gcss}\">"$'\n'
+      if [ "$gkey" != "active" ]; then
+        all_html+="        <div class=\"state-group-header\">"$'\n'
+        all_html+="          <span class=\"state-group-label\">${glabel}</span>"$'\n'
+        all_html+="          <span class=\"state-group-count\">${count}</span>"$'\n'
+        all_html+="        </div>"$'\n'
+      fi
+      all_html+="        <div class=\"state-group-body\">"$'\n'
+    fi
+
+    # Render items in this group
+    while IFS='|' read -r sort_key dir_name safe_pred safe_status safe_created safe_state child_dir child_rel; do
+      local pred_text="$safe_pred"
+      local status="$safe_status"
+      local state="$safe_state"
+      local created="$safe_created"
+
+      # Dot class
+      local dot_class="tree-dot"
+      case "$status" in
+        satisfied) dot_class="tree-dot satisfied" ;;
+        pruned)    dot_class="tree-dot pruned" ;;
+        *)
+          case "$state" in
+            "active"*) dot_class="tree-dot active" ;;
+          esac
+          ;;
+      esac
+
+      # Predicate text class
+      local pred_class="tree-predicate"
+      [ "$status" = "pruned" ] && pred_class="tree-predicate pruned"
+      [ "$status" = "satisfied" ] && pred_class="tree-predicate satisfied"
+
+      local pred_esc created_esc
+      pred_esc="$(html_escape "$pred_text")"
+      created_esc="$(html_escape "$created")"
+
+      # State label class
+      local state_label_class="tree-state"
+      [[ "$state" == "active"* ]] && state_label_class="tree-state active-state"
+      local state_label_esc
+      state_label_esc="$(html_escape "$state")"
+
+      # Recurse into children first so we know if there are any
+      local children_output
+      children_output="$(render_children "$child_dir" "$child_rel" "$active_node" "$((depth+1))")"
+
+      # Generate unique node ID for collapsible toggle
+      local safe_dir_id
+      safe_dir_id="$(printf '%s' "${dir_name}" | tr -dc 'a-zA-Z0-9' | head -c 20)"
+      local node_id="node-${depth}-${safe_dir_id}"
+
+      all_html+="          <div class=\"tree-item\">"$'\n'
+      if [ -n "$children_output" ]; then
+        all_html+="            <div class=\"tree-item-header tree-item-toggle\" onclick=\"toggleNode('${node_id}')\">"$'\n'
+        all_html+="              <span class=\"toggle-icon\" id=\"icon-${node_id}\">▾</span>"$'\n'
+      else
+        all_html+="            <div class=\"tree-item-header\">"$'\n'
+      fi
+      all_html+="              <div class=\"${dot_class}\"></div>"$'\n'
+      all_html+="              <span class=\"${pred_class}\">${pred_esc}</span>"$'\n'
+      all_html+="              <span class=\"${state_label_class}\">${state_label_esc}</span>"$'\n'
+      if [ -n "$created_esc" ]; then
+        all_html+="              <span class=\"tree-date\">${created_esc}</span>"$'\n'
+      fi
+      all_html+="            </div>"$'\n'
+
+      if [ -n "$children_output" ]; then
+        all_html+="            <div class=\"tree-children\" id=\"children-${node_id}\">"$'\n'
+        all_html+="              <div class=\"tree-level\">"$'\n'
+        all_html+="${children_output}"
+        all_html+="              </div>"$'\n'
+        all_html+="            </div>"$'\n'
+      fi
+
+      all_html+="          </div>"$'\n'
+    done < "$entries_file"
+
+    all_html+="        </div>"$'\n'  # state-group-body
+    all_html+="      </div>"$'\n'    # state-group
+  done < "$group_order_file"
+
+  rm -rf "$groups_dir" "$group_order_file"
+
+  printf '%s' "$all_html"
 }
 
 # ── render a single fractal tree ──────────────────────────────────────────────
@@ -173,10 +380,19 @@ render_tree() {
   local tree_children
   tree_children="$(render_children "$tree_dir" "" "$active_node")"
 
+  # Progress bar percentage
+  local pct=0
+  if [ "$total" -gt 0 ]; then
+    pct=$(( (satisfied * 100) / total ))
+  fi
+
   printf '<div class="tree-root-line">\n'
   printf '  <div class="tree-root-dot"></div>\n'
   printf '  <div class="tree-root-text">%s</div>\n' "$root_pred_esc"
   printf '  <div class="tree-root-meta">%s</div>\n' "$root_meta"
+  printf '</div>\n'
+  printf '<div class="progress-bar-wrap">\n'
+  printf '  <div class="progress-bar-fill" style="width:%d%%"></div>\n' "$pct"
   printf '</div>\n'
   printf '<div class="tree-level">\n'
   printf '%s' "$tree_children"
@@ -408,6 +624,16 @@ cat > "$OUTPUT" <<HTMLEOF
     --orphan-text: #bbb;
     --orphan-meta: #ccc;
     --orphan-border: #f0f0f0;
+    --progress-bg: #f0f0f0;
+    --progress-fill: #2a2a2a;
+    --group-label-active: #2a2a2a;
+    --group-label-inprogress: #666;
+    --group-label-pending: #999;
+    --group-label-satisfied: #bbb;
+    --group-label-pruned: #ccc;
+    --group-bg-satisfied: #fafafa;
+    --group-bg-pruned: #fafafa;
+    --toggle-color: #ccc;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -437,6 +663,16 @@ cat > "$OUTPUT" <<HTMLEOF
       --orphan-text: #555;
       --orphan-meta: #444;
       --orphan-border: #1e1e1e;
+      --progress-bg: #2a2a2a;
+      --progress-fill: #e0e0e0;
+      --group-label-active: #e0e0e0;
+      --group-label-inprogress: #888;
+      --group-label-pending: #666;
+      --group-label-satisfied: #444;
+      --group-label-pruned: #3a3a3a;
+      --group-bg-satisfied: #111;
+      --group-bg-pruned: #111;
+      --toggle-color: #444;
     }
   }
 
@@ -653,7 +889,7 @@ cat > "$OUTPUT" <<HTMLEOF
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 32px;
+    margin-bottom: 12px;
   }
 
   .tree-root-dot {
@@ -677,6 +913,23 @@ cat > "$OUTPUT" <<HTMLEOF
     white-space: nowrap;
   }
 
+  /* ── Progress bar ── */
+  .progress-bar-wrap {
+    height: 2px;
+    background: var(--progress-bg);
+    border-radius: 1px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--progress-fill);
+    border-radius: 1px;
+    transition: width 0.6s ease;
+    min-width: 0;
+  }
+
   .tree-level {
     padding-left: 24px;
     border-left: 1px solid var(--tree-l1);
@@ -692,7 +945,7 @@ cat > "$OUTPUT" <<HTMLEOF
   }
 
   .tree-item {
-    padding: 12px 0 12px 20px;
+    padding: 10px 0 10px 20px;
     position: relative;
   }
 
@@ -700,7 +953,7 @@ cat > "$OUTPUT" <<HTMLEOF
     content: '';
     position: absolute;
     left: 0;
-    top: 24px;
+    top: 22px;
     width: 12px;
     height: 1px;
     background: inherit;
@@ -746,6 +999,7 @@ cat > "$OUTPUT" <<HTMLEOF
     font-size: 13px;
     font-weight: 400;
     color: var(--text);
+    flex: 1;
   }
 
   .tree-predicate.pruned {
@@ -754,17 +1008,128 @@ cat > "$OUTPUT" <<HTMLEOF
     text-decoration-color: var(--text-dim);
   }
 
-  .tree-state {
+  .tree-predicate.satisfied {
+    color: var(--text-ghost);
+    font-weight: 300;
+  }
+
+  .tree-date {
     font-size: 10px;
     color: var(--text-ghost);
     font-weight: 300;
-    letter-spacing: 0.3px;
-    margin-left: auto;
     white-space: nowrap;
+    letter-spacing: 0.2px;
+    flex-shrink: 0;
   }
 
+  /* ── State groups ── */
+
+  .state-group {
+    margin-bottom: 4px;
+  }
+
+  .state-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 4px 20px;
+    position: relative;
+  }
+
+  .state-group.collapsible .state-group-header {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .state-group.collapsible .state-group-header:hover .state-group-label {
+    color: var(--text-faint);
+  }
+
+  .state-group-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: lowercase;
+    font-weight: 400;
+    transition: color 0.2s ease;
+  }
+
+  .state-group-count {
+    font-size: 10px;
+    font-weight: 300;
+    color: var(--text-ghost);
+  }
+
+  .state-group-toggle {
+    font-size: 10px;
+    color: var(--toggle-color);
+    margin-left: auto;
+    transition: transform 0.25s ease, color 0.2s ease;
+    display: inline-block;
+  }
+
+  .state-group-toggle.open {
+    transform: rotate(0deg);
+  }
+
+  .state-group-toggle.closed {
+    transform: rotate(-90deg);
+  }
+
+  .state-group-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 9999px;
+    opacity: 1;
+  }
+
+  .state-group-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  /* Group-specific label colors */
+  .group-active .state-group-label   { color: var(--group-label-active); }
+  .group-inprogress .state-group-label { color: var(--group-label-inprogress); }
+  .group-candidate .state-group-label { color: var(--group-label-pending); }
+  .group-pending .state-group-label  { color: var(--group-label-pending); }
+  .group-satisfied .state-group-label { color: var(--group-label-satisfied); }
+  .group-pruned .state-group-label   { color: var(--group-label-pruned); }
+
+  /* Satisfied group: subtle background */
+  .group-satisfied .state-group-body,
+  .group-pruned .state-group-body {
+    border-radius: 4px;
+  }
+
+  /* Active group: no header shown (handled in bash via conditional) */
+  .group-active .state-group-header {
+    display: none;
+  }
+
+  /* ── Active node highlight ── */
+  .active-node-highlight {
+    padding: 12px 16px;
+    border-left: 2px solid var(--text);
+    margin-bottom: 24px;
+  }
+  .active-node-highlight .tree-predicate {
+    font-weight: 500;
+    font-size: 14px;
+  }
+
+  /* ── State label ── */
+  .tree-state {
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    color: var(--text-ghost);
+    font-weight: 300;
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-transform: lowercase;
+    margin-right: 8px;
+  }
   .tree-state.active-state {
-    color: var(--text);
+    color: var(--text-soft);
   }
 
   /* ── Orphans ── */
@@ -819,6 +1184,26 @@ cat > "$OUTPUT" <<HTMLEOF
     font-weight: 300;
     margin-left: auto;
     white-space: nowrap;
+  }
+
+  /* ── Node collapsible ── */
+  .tree-item-toggle {
+    cursor: pointer;
+    user-select: none;
+  }
+  .tree-item-toggle .toggle-icon {
+    font-size: 10px;
+    color: var(--text-ghost);
+    margin-right: 4px;
+    display: inline-block;
+    transition: transform 0.2s ease;
+  }
+  .tree-children {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .tree-children.collapsed {
+    max-height: 0 !important;
   }
 
   /* Breathing */
@@ -898,6 +1283,49 @@ ${DESC_LIST_HTML}
       tab.classList.add('active');
       document.getElementById(tab.dataset.subtree).classList.add('active');
     });
+  });
+
+  // Toggle group collapse
+  function toggleGroup(id) {
+    const body = document.getElementById('body-' + id);
+    const toggle = document.getElementById('toggle-' + id);
+    if (!body) return;
+    const isCollapsed = body.classList.contains('collapsed');
+    if (isCollapsed) {
+      body.classList.remove('collapsed');
+      if (toggle) { toggle.textContent = '▾'; toggle.classList.remove('closed'); toggle.classList.add('open'); }
+    } else {
+      body.classList.add('collapsed');
+      if (toggle) { toggle.textContent = '▸'; toggle.classList.remove('open'); toggle.classList.add('closed'); }
+    }
+  }
+
+  // Initialize toggle icons for collapsed groups
+  document.querySelectorAll('.state-group-body.collapsed').forEach(body => {
+    const id = body.id.replace('body-', '');
+    const toggle = document.getElementById('toggle-' + id);
+    if (toggle) { toggle.textContent = '▸'; toggle.classList.add('closed'); }
+  });
+
+  // Toggle individual predicate node children
+  function toggleNode(id) {
+    var body = document.getElementById('children-' + id);
+    var icon = document.getElementById('icon-' + id);
+    if (!body) return;
+    if (body.classList.contains('collapsed')) {
+      body.classList.remove('collapsed');
+      body.style.maxHeight = body.scrollHeight + 'px';
+      if (icon) icon.textContent = '▾';
+    } else {
+      body.style.maxHeight = '0px';
+      body.classList.add('collapsed');
+      if (icon) icon.textContent = '▸';
+    }
+  }
+
+  // Initialize node children max-height for expanded nodes
+  document.querySelectorAll('.tree-children:not(.collapsed)').forEach(el => {
+    el.style.maxHeight = el.scrollHeight + 'px';
   });
 </script>
 

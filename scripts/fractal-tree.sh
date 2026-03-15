@@ -118,16 +118,8 @@ render_tree() {
       child_prefix="${prefix}│   "
     fi
 
-    # If this child is a sub-tree root (has its own root.md), render it with its own active_node
-    if [ -f "$child_dir/root.md" ]; then
-      local sub_active
-      sub_active="$(get_field "$child_dir/root.md" active_node)"
-      [ -z "$sub_active" ] && sub_active="."
-      render_tree "$child_dir" "$sub_active" "$child_prefix" "1"
-    else
-      # Recurse for plain children (predicate.md only, may have sub-dirs)
-      render_tree "$child_dir" "" "$child_prefix" "0"
-    fi
+    # Recurse into children — sub-trees get no active_node propagation (their ◀ is internal)
+    render_tree "$child_dir" "" "$child_prefix" "0"
   done
 }
 
