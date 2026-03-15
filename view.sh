@@ -31,23 +31,13 @@ html_escape() {
   printf '%s' "$s"
 }
 
-# ── parse root.md ───────────────────────────────────────────────────────────
-
-ROOT_FILE="$FRACTAL_DIR/root.md"
-ROOT_PREDICATE=""
-ACTIVE_NODE=""
-
-if [ -f "$ROOT_FILE" ]; then
-  ROOT_PREDICATE="$(frontmatter_field "$ROOT_FILE" "predicate")"
-  ACTIVE_NODE="$(frontmatter_field "$ROOT_FILE" "active_node")"
-fi
-
 # ── derive node execution state ─────────────────────────────────────────────
-# Args: <node_dir_absolute> <node_relative_path>
+# Args: <node_dir_absolute> <node_relative_path> <active_node>
 # Outputs state string to stdout
 derive_state() {
   local node_dir="$1"
   local node_rel="$2"
+  local active_node="$3"
 
   local pred_file="$node_dir/predicate.md"
   local status=""
@@ -57,52 +47,33 @@ derive_state() {
 
   local state
   if [ "$status" = "satisfied" ]; then
-    state="satisfeito"
+    state="satisfied"
   elif [ "$status" = "pruned" ]; then
-    state="podado"
+    state="pruned"
   elif [ -f "$node_dir/plan.md" ] && [ -f "$node_dir/results.md" ] && [ -f "$node_dir/review.md" ]; then
-    state="revisado"
+    state="reviewed"
   elif [ -f "$node_dir/plan.md" ] && [ -f "$node_dir/results.md" ]; then
-    state="executado"
+    state="executed"
   elif [ -f "$node_dir/plan.md" ]; then
-    state="planejado"
+    state="planned"
   else
-    state="pendente"
+    state="pending"
   fi
 
-  if [ -n "$ACTIVE_NODE" ] && [ "$node_rel" = "$ACTIVE_NODE" ]; then
-    state="nó ativo · $state"
+  if [ -n "$active_node" ] && [ "$node_rel" = "$active_node" ]; then
+    state="active · $state"
   fi
 
   printf '%s' "$state"
 }
 
-# ── counts ───────────────────────────────────────────────────────────────────
-TOTAL_NODES=0
-SATISFIED_NODES=0
-
-# Pre-scan all nodes to count totals
-if [ -d "$FRACTAL_DIR" ]; then
-  while IFS= read -r pred_file; do
-    node_dir="$(dirname "$pred_file")"
-    # Skip root.md directory itself (it's not a node, it's the tree root)
-    if [ "$node_dir" = "$FRACTAL_DIR" ]; then
-      continue
-    fi
-    TOTAL_NODES=$((TOTAL_NODES + 1))
-    status="$(frontmatter_field "$pred_file" "status")"
-    if [ "$status" = "satisfied" ]; then
-      SATISFIED_NODES=$((SATISFIED_NODES + 1))
-    fi
-  done < <(find "$FRACTAL_DIR" -name "predicate.md" | sort)
-fi
-
 # ── recursively build tree HTML ──────────────────────────────────────────────
-# render_children <parent_dir_absolute> <parent_rel_path>
+# render_children <parent_dir_absolute> <parent_rel_path> <active_node>
 # outputs HTML to stdout
 render_children() {
   local parent_dir="$1"
   local parent_rel="$2"
+  local active_node="$3"
 
   # Iterate immediate child directories
   for child in "$parent_dir"/*/; do
@@ -122,7 +93,7 @@ render_children() {
     local pred_text status state
     pred_text="$(frontmatter_field "$pred_file" "predicate")"
     status="$(frontmatter_field "$pred_file" "status")"
-    state="$(derive_state "$child" "$child_rel")"
+    state="$(derive_state "$child" "$child_rel" "$active_node")"
 
     # Dot class
     local dot_class="tree-dot"
@@ -131,7 +102,7 @@ render_children() {
       pruned)    dot_class="tree-dot pruned" ;;
       *)
         case "$state" in
-          "nó ativo"*) dot_class="tree-dot active" ;;
+          "active"*) dot_class="tree-dot active" ;;
         esac
         ;;
     esac
@@ -143,7 +114,7 @@ render_children() {
     # State label class
     local state_class="tree-state"
     case "$state" in
-      "nó ativo"*) state_class="tree-state active-state" ;;
+      "active"*) state_class="tree-state active-state" ;;
     esac
 
     local pred_esc state_esc
@@ -159,7 +130,7 @@ render_children() {
 
     # Recurse into children
     local children_output
-    children_output="$(render_children "$child" "$child_rel")"
+    children_output="$(render_children "$child" "$child_rel" "$active_node")"
     if [ -n "$children_output" ]; then
       printf '        <div class="tree-level">\n'
       printf '%s' "$children_output"
@@ -170,10 +141,145 @@ render_children() {
   done
 }
 
-# ── build tree HTML ───────────────────────────────────────────────────────────
-TREE_CHILDREN_HTML="$(render_children "$FRACTAL_DIR" "")"
-ROOT_META="$SATISFIED_NODES / $TOTAL_NODES"
-ROOT_PRED_ESCAPED="$(html_escape "$ROOT_PREDICATE")"
+# ── render a single fractal tree ──────────────────────────────────────────────
+# render_tree <tree_dir> <tree_name>
+# Returns HTML for one tree panel
+render_tree() {
+  local tree_dir="$1"
+  local tree_name="$2"
+  local root_file="$tree_dir/root.md"
+
+  local root_predicate="" active_node=""
+  if [ -f "$root_file" ]; then
+    root_predicate="$(frontmatter_field "$root_file" "predicate")"
+    active_node="$(frontmatter_field "$root_file" "active_node")"
+  fi
+
+  # Count nodes for this tree
+  local total=0 satisfied=0
+  while IFS= read -r pred_file; do
+    local node_dir
+    node_dir="$(dirname "$pred_file")"
+    [ "$node_dir" = "$tree_dir" ] && continue
+    total=$((total + 1))
+    local st
+    st="$(frontmatter_field "$pred_file" "status")"
+    [ "$st" = "satisfied" ] && satisfied=$((satisfied + 1))
+  done < <(find "$tree_dir" -name "predicate.md" | sort)
+
+  local root_meta="$satisfied / $total"
+  local root_pred_esc
+  root_pred_esc="$(html_escape "$root_predicate")"
+  local tree_children
+  tree_children="$(render_children "$tree_dir" "" "$active_node")"
+
+  printf '<div class="tree-root-line">\n'
+  printf '  <div class="tree-root-dot"></div>\n'
+  printf '  <div class="tree-root-text">%s</div>\n' "$root_pred_esc"
+  printf '  <div class="tree-root-meta">%s</div>\n' "$root_meta"
+  printf '</div>\n'
+  printf '<div class="tree-level">\n'
+  printf '%s' "$tree_children"
+  printf '</div>\n'
+}
+
+# ── discover all trees ────────────────────────────────────────────────────────
+# A tree is either:
+#   1. .fractal/root.md → the default tree (name = "main")
+#   2. .fractal/<name>/root.md → a named independent tree
+
+TREE_NAMES=()   # display names in order
+TREE_DIRS=()    # absolute dirs in order
+
+if [ -d "$FRACTAL_DIR" ]; then
+  # Check for root tree
+  if [ -f "$FRACTAL_DIR/root.md" ]; then
+    TREE_NAMES+=("main")
+    TREE_DIRS+=("$FRACTAL_DIR")
+  fi
+
+  # Check for sub-trees (skip _orphans — handled separately)
+  for subdir in "$FRACTAL_DIR"/*/; do
+    [ -d "$subdir" ] || continue
+    local_name="$(basename "$subdir")"
+    [ "$local_name" = "_orphans" ] && continue
+    if [ -f "$subdir/root.md" ]; then
+      TREE_NAMES+=("$local_name")
+      TREE_DIRS+=("$subdir")
+    fi
+  done
+fi
+
+NUM_TREES=${#TREE_NAMES[@]}
+
+# ── build tree panels HTML ────────────────────────────────────────────────────
+TREE_TABS_HTML=""
+TREE_PANELS_HTML=""
+
+if [ "$NUM_TREES" -eq 0 ]; then
+  # No trees found
+  TREE_PANELS_HTML='<div class="empty-state">no trees found in .fractal/</div>'
+elif [ "$NUM_TREES" -eq 1 ]; then
+  # Single tree — no sub-tabs needed, just render the tree directly
+  tree_html="$(render_tree "${TREE_DIRS[0]}" "${TREE_NAMES[0]}")"
+  TREE_PANELS_HTML="$tree_html"
+else
+  # Multiple trees — render sub-tabs within the tree panel
+  NL=$'\n'
+  for i in "${!TREE_NAMES[@]}"; do
+    tname="${TREE_NAMES[$i]}"
+    tname_esc="$(html_escape "$tname")"
+    tname_id="tree-sub-$(echo "$tname" | tr ' /' '--')"
+    if [ "$i" -eq 0 ]; then
+      TREE_TABS_HTML="${TREE_TABS_HTML}    <div class=\"tree-tab active\" data-subtree=\"${tname_id}\">${tname_esc}</div>${NL}"
+    else
+      TREE_TABS_HTML="${TREE_TABS_HTML}    <div class=\"tree-tab\" data-subtree=\"${tname_id}\">${tname_esc}</div>${NL}"
+    fi
+
+    tree_html="$(render_tree "${TREE_DIRS[$i]}" "$tname")"
+
+    if [ "$i" -eq 0 ]; then
+      TREE_PANELS_HTML="${TREE_PANELS_HTML}<div class=\"tree-sub-panel active\" id=\"${tname_id}\">${NL}${tree_html}${NL}</div>${NL}"
+    else
+      TREE_PANELS_HTML="${TREE_PANELS_HTML}<div class=\"tree-sub-panel\" id=\"${tname_id}\">${NL}${tree_html}${NL}</div>${NL}"
+    fi
+  done
+fi
+
+# ── build orphans HTML ────────────────────────────────────────────────────────
+ORPHANS_DIR="$FRACTAL_DIR/_orphans"
+ORPHANS_HTML=""
+
+if [ -d "$ORPHANS_DIR" ]; then
+  orphan_count=0
+  orphan_rows=""
+  for orphan_dir in "$ORPHANS_DIR"/*/; do
+    [ -d "$orphan_dir" ] || continue
+    local_pred_file="$orphan_dir/predicate.md"
+    [ -f "$local_pred_file" ] || continue
+    orphan_count=$((orphan_count + 1))
+    pred_text="$(frontmatter_field "$local_pred_file" "predicate")"
+    origin="$(frontmatter_field "$local_pred_file" "origin")"
+    status="$(frontmatter_field "$local_pred_file" "status")"
+    pred_esc="$(html_escape "$pred_text")"
+    origin_esc="$(html_escape "$origin")"
+    status_esc="$(html_escape "$status")"
+    orphan_rows="${orphan_rows}      <div class=\"orphan-item\">
+        <div class=\"orphan-dot\"></div>
+        <span class=\"orphan-predicate\">${pred_esc}</span>
+        <span class=\"orphan-meta\">${origin_esc:+${origin_esc} · }${status_esc}</span>
+      </div>
+"
+  done
+
+  if [ "$orphan_count" -gt 0 ]; then
+    ORPHANS_HTML="  <div class=\"orphans-section\">
+    <div class=\"orphans-label\">orphans · ${orphan_count}</div>
+    <div class=\"orphans-list\">
+${orphan_rows}    </div>
+  </div>"
+  fi
+fi
 
 # ── build skills HTML ────────────────────────────────────────────────────────
 # Cycle order for flow pills
@@ -258,11 +364,17 @@ if [ -d "$COMMANDS_DIR" ]; then
   done
 fi
 
+# ── multi-tree sub-tabs header (only if multiple trees) ───────────────────────
+TREE_SUBTABS_BLOCK=""
+if [ "$NUM_TREES" -gt 1 ]; then
+  TREE_SUBTABS_BLOCK="$(printf '  <div class="tree-subtabs">\n%s  </div>\n' "$TREE_TABS_HTML")"
+fi
+
 # ── generate HTML ─────────────────────────────────────────────────────────────
 
 cat > "$OUTPUT" <<HTMLEOF
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -292,6 +404,10 @@ cat > "$OUTPUT" <<HTMLEOF
     --tree-l3: #b0b0b0;
     --scrollbar: #e0e0e0;
     --arrow: #ddd;
+    --orphan-dot: #d0d0d0;
+    --orphan-text: #bbb;
+    --orphan-meta: #ccc;
+    --orphan-border: #f0f0f0;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -317,6 +433,10 @@ cat > "$OUTPUT" <<HTMLEOF
       --tree-l3: #666;
       --scrollbar: #333;
       --arrow: #444;
+      --orphan-dot: #444;
+      --orphan-text: #555;
+      --orphan-meta: #444;
+      --orphan-border: #1e1e1e;
     }
   }
 
@@ -486,6 +606,49 @@ cat > "$OUTPUT" <<HTMLEOF
 
   /* ── Tree ── */
 
+  .tree-subtabs {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 0;
+  }
+
+  .tree-tab {
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    color: var(--text-ghost);
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.3s ease, border-color 0.3s ease;
+    text-transform: lowercase;
+    user-select: none;
+  }
+
+  .tree-tab:hover { color: var(--text-soft); }
+
+  .tree-tab.active {
+    color: var(--text-soft);
+    border-bottom-color: var(--text-soft);
+  }
+
+  .tree-sub-panel {
+    display: none;
+    animation: fadeIn 0.4s ease;
+  }
+
+  .tree-sub-panel.active { display: block; }
+
+  .empty-state {
+    font-size: 13px;
+    color: var(--text-faint);
+    font-weight: 300;
+    padding: 24px 0;
+  }
+
   .tree-root-line {
     display: flex;
     align-items: center;
@@ -604,6 +767,60 @@ cat > "$OUTPUT" <<HTMLEOF
     color: var(--text);
   }
 
+  /* ── Orphans ── */
+
+  .orphans-section {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .orphans-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: lowercase;
+    color: var(--orphan-meta);
+    margin-bottom: 16px;
+  }
+
+  .orphans-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .orphan-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--orphan-border);
+  }
+
+  .orphan-item:last-child { border-bottom: none; }
+
+  .orphan-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orphan-dot);
+    flex-shrink: 0;
+  }
+
+  .orphan-predicate {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--orphan-text);
+  }
+
+  .orphan-meta {
+    font-size: 10px;
+    color: var(--orphan-meta);
+    font-weight: 300;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
   /* Breathing */
   .content { animation: breathe 8s ease-in-out infinite; }
 
@@ -624,16 +841,24 @@ cat > "$OUTPUT" <<HTMLEOF
 </div>
 
 <div class="tabs">
-  <div class="tab active" data-tab="skills">skills</div>
-  <div class="tab" data-tab="tree">árvore</div>
+  <div class="tab active" data-tab="tree">predicate tree</div>
+  <div class="tab" data-tab="skills">skills</div>
 </div>
 
 <div class="content">
 
-  <!-- ── Skills ── -->
-  <div class="panel active" id="skills">
+  <!-- ── Tree ── -->
+  <div class="panel active" id="tree">
 
-    <div class="skills-section-label">ciclo de execução</div>
+${TREE_SUBTABS_BLOCK}
+${TREE_PANELS_HTML}
+${ORPHANS_HTML}
+  </div>
+
+  <!-- ── Skills ── -->
+  <div class="panel" id="skills">
+
+    <div class="skills-section-label">execution cycle</div>
 
     <div class="skills-flow">
 ${FLOW_HTML}
@@ -644,25 +869,10 @@ ${DESC_LIST_HTML}
     </div>
 
     <div class="skills-aside">
-      <div class="aside-label">atalho</div>
+      <div class="aside-label">shortcut</div>
       <div class="aside-text">
-        <strong style="font-weight:400;color:var(--text-soft)">try</strong> pula o ciclo completo — para predicados simples o suficiente pra resolver em um shot.
+        <strong style="font-weight:400;color:var(--text-soft)">try</strong> skips the full cycle — for predicates simple enough to solve in one shot.
       </div>
-    </div>
-
-  </div>
-
-  <!-- ── Tree ── -->
-  <div class="panel" id="tree">
-
-    <div class="tree-root-line">
-      <div class="tree-root-dot"></div>
-      <div class="tree-root-text">${ROOT_PRED_ESCAPED}</div>
-      <div class="tree-root-meta">${ROOT_META}</div>
-    </div>
-
-    <div class="tree-level">
-${TREE_CHILDREN_HTML}
     </div>
 
   </div>
@@ -670,12 +880,23 @@ ${TREE_CHILDREN_HTML}
 </div>
 
 <script>
+  // Main tabs
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById(tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Tree sub-tabs (for multiple trees)
+  document.querySelectorAll('.tree-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tree-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tree-sub-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.subtree).classList.add('active');
     });
   });
 </script>
