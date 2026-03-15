@@ -1,4 +1,4 @@
-# fractal
+# openpredicate
 
 You open a new project. You write a plan. Three days later the plan is wrong, the
 doc is stale, and you're maintaining two sources of truth — the actual code and the
@@ -30,8 +30,8 @@ recursion itself.
 ## Install
 
 ```bash
-git clone https://github.com/rmolines/fractal ~/git/fractal
-echo '{"plugins": [{"path": "~/git/fractal"}]}' >> ~/.claude/marketplace.json
+git clone https://github.com/rmolines/openpredicate ~/git/openpredicate
+echo '{"plugins": [{"path": "~/git/openpredicate"}]}' >> ~/.claude/marketplace.json
 ```
 
 Restart Claude Code. The `/fractal` skills will be available in any repo.

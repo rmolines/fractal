@@ -1,0 +1,10 @@
+# Fractal tree (each project has its own)
+.fractal/
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
