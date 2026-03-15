@@ -1,4 +1,6 @@
-# openpredicate
+# OpenPredicate
+
+One recursive operation. Predicates, not tasks.
 
 You open a new project. You write a plan. Three days later the plan is wrong, the
 doc is stale, and you're maintaining two sources of truth — the actual code and the
@@ -9,6 +11,27 @@ recursive operation. There is no separate plan, no roadmap doc, no task board. T
 predicate tree living in `.fractal/` is the plan, the log, and the state —
 simultaneously. `ls` shows the tree. `cat` shows the state. When a session dies and
 a new one starts, the agent reads the filesystem and knows exactly where to continue.
+
+## How is this different?
+
+Most agentic planning tools decompose projects into tasks: PRD → epic → task → subtask.
+Task Master, CCPM, and BMAD all work this way — fixed hierarchy, linear lifecycle,
+state stored in JSON or GitHub Issues.
+
+OpenPredicate makes four different bets:
+
+| Design choice | Others | OpenPredicate |
+|---|---|---|
+| Unit of work | Task (action to complete) | Predicate (truth to reach) |
+| Decomposition | Upfront, full project | Lazy — one child at a time |
+| State store | JSON / database / GitHub Issues | The filesystem itself |
+| Failed path | Error or stale task | Prune → re-evaluate parent → new direction |
+
+The predicate distinction matters: "implement auth" is a task; "users can authenticate
+with Google" is a predicate. Predicates compose — satisfying a child constitutes
+progress toward the parent by definition, with no tracking mechanism needed. And
+because the tree grows one node at a time with a parent re-evaluation after each,
+the plan stays honest without a separate review phase.
 
 ## The operation
 
