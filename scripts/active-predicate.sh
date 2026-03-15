@@ -13,19 +13,24 @@ if [ -n "${1:-}" ]; then
   fi
 else
   # Auto-discover single tree
-  TREE=""
-  for rootmd in .fractal/*/root.md; do
-    [ -f "$rootmd" ] || continue
+  # First: check if .fractal/root.md exists → tree root is .fractal itself
+  if [ -f ".fractal/root.md" ]; then
+    TREE=".fractal"
+  else
+    TREE=""
+    for rootmd in .fractal/*/root.md; do
+      [ -f "$rootmd" ] || continue
+      if [ -z "$TREE" ]; then
+        TREE="$(dirname "$rootmd")"
+      else
+        echo "ERROR: multiple trees in .fractal/ — run /fractal:doctor"
+        exit 0
+      fi
+    done
     if [ -z "$TREE" ]; then
-      TREE="$(dirname "$rootmd")"
-    else
-      echo "ERROR: multiple trees in .fractal/ — run /fractal:doctor"
+      echo "ERROR: no tree found in .fractal/"
       exit 0
     fi
-  done
-  if [ -z "$TREE" ]; then
-    echo "ERROR: no tree found in .fractal/"
-    exit 0
   fi
 fi
 

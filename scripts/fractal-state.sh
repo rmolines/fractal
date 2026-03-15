@@ -11,18 +11,23 @@ if [ $# -lt 1 ]; then
     echo "state: error" >&2
     exit 1
   fi
-  FOUND=()
-  for d in .fractal/*/; do
-    [ -f "${d}root.md" ] && FOUND+=("${d%/}")
-  done
-  if [ "${#FOUND[@]}" -eq 1 ]; then
-    TREE_PATH="${FOUND[0]}"
-  elif [ "${#FOUND[@]}" -eq 0 ]; then
-    echo "state: error" >&2
-    exit 1
+  # First: check if .fractal/root.md exists → tree root is .fractal itself
+  if [ -f ".fractal/root.md" ]; then
+    TREE_PATH=".fractal"
   else
-    echo "Error: multiple trees found in .fractal/ — run /fractal:doctor" >&2
-    exit 1
+    FOUND=()
+    for d in .fractal/*/; do
+      [ -f "${d}root.md" ] && FOUND+=("${d%/}")
+    done
+    if [ "${#FOUND[@]}" -eq 1 ]; then
+      TREE_PATH="${FOUND[0]}"
+    elif [ "${#FOUND[@]}" -eq 0 ]; then
+      echo "state: error" >&2
+      exit 1
+    else
+      echo "Error: multiple trees found in .fractal/ — run /fractal:doctor" >&2
+      exit 1
+    fi
   fi
 else
   TREE_PATH="${1%/}"  # strip trailing slash

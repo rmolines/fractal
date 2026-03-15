@@ -110,6 +110,18 @@ Agent(
 > - Tests with notes indicate issues the human observed
 > - Assess whether the tested items adequately cover the predicate
 >
+> **Functional requirements (if plan has ## Functional Requirements):**
+> <full FR section from plan.md, or "No FRs defined">
+>
+> If FRs are defined, evaluate each one individually and include in output:
+> ### Functional Requirements
+> | FR | Status | Evidence |
+> |----|--------|----------|
+> | FR1 — <condition> | PASS/FAIL/UNTESTABLE | <where verified> |
+>
+> FRs are the primary acceptance gate. If all FRs PASS, the predicate is likely satisfied.
+> If any FR FAILs, the predicate is NOT satisfied regardless of other signals.
+>
 > **Evaluate the following:**
 >
 > **1. Problem alignment**

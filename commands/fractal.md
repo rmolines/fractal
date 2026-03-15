@@ -61,6 +61,18 @@ calling `/fractal` again from the same state produces the same behavior.
 
 Read pre-loaded state.
 
+**Always show the tree first** (unless state is error):
+
+```bash
+FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1)
+bash "$FRACTAL_SCRIPTS/fractal-tree.sh"
+```
+
+Print the tree output immediately — this gives the human instant spatial awareness
+of where we are before any decision is made.
+
+Then route:
+
 - `state: error` → STOP. Print "Nenhuma arvore encontrada. Execute /fractal:init."
 - `active_status: satisfied` AND `depth: 0` → Print "Predicado raiz satisfeito." STOP.
 - `active_status: satisfied` OR `active_status: pruned` → go to step 6 (ASCEND).

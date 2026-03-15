@@ -290,6 +290,20 @@ Write it as if explaining to someone who knows the product but not the codebase:
 
 All deliverables serve the same predicate — the node's falsifiable condition. The predicate line in each deliverable restates which aspect of the predicate this deliverable advances (for clarity, not traceability).
 
+### Browser validation for UI deliverables
+
+When a deliverable produces user-visible UI (web pages, components, screens), the
+**Human test** section should describe steps the user can verify via Chrome browser
+automation (`mcp__claude-in-chrome__*` tools). Examples:
+
+- "Open http://localhost:3000/settings → verify the toggle appears"
+- "Navigate to the dashboard → screenshot shows the chart rendered"
+- "Fill the form and submit → success message appears"
+
+During delivery, the orchestrator can use Chrome tools to pre-validate UI deliverables
+before marking them as success. This catches visual regressions, broken layouts, and
+missing elements that automated tests miss.
+
 ### Prompt quality checklist
 
 Before finalizing each deliverable's prompt, verify:
@@ -304,6 +318,36 @@ Before finalizing each deliverable's prompt, verify:
 - [ ] States which aspect of the predicate this deliverable advances
 - [ ] Incorporates relevant technical context from the predicate (stack, patterns, constraints, decisions)
 - [ ] Has a human-readable test that a non-technical person could follow
+- [ ] If UI-facing: human_test includes browser-verifiable steps (Chrome automation)
+
+---
+
+## Functional requirements
+
+Before writing deliverables, extract the **functional requirements** from the predicate.
+These are the testable conditions that, taken together, satisfy the predicate.
+
+```markdown
+## Functional Requirements
+
+FR1: <testable condition extracted from the predicate>
+validates: <which part of the predicate this covers>
+verified_by: D<N> acceptance | human_test T<N> | browser check
+
+FR2: <testable condition>
+validates: <predicate aspect>
+verified_by: D<N> acceptance | human_test T<N>
+```
+
+Rules:
+- Every FR must be falsifiable — you can unambiguously say "yes this works" or "no it doesn't"
+- Every FR must map to at least one deliverable's acceptance or human_test
+- Every critical aspect of the predicate must be covered by at least one FR
+- FRs that require human observation (UX, visual, flow) → `verified_by: human_test`
+- FRs that can be automated → `verified_by: D<N> acceptance`
+
+The review skill uses FRs as the primary checklist. If an FR has no `verified_by`,
+the review cannot confirm the predicate is satisfied.
 
 ---
 

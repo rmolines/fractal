@@ -363,6 +363,20 @@ If deliverables ran in worktree isolation:
    after resolution.
 4. If resolution is ambiguous: ask the user before proceeding
 
+### Browser smoke test (UI deliverables)
+
+After worktree merge and before committing, if the deliverable has a `human_test` that
+references a URL or UI element, use Chrome automation tools to pre-validate:
+
+```
+mcp__claude-in-chrome__navigate → target URL
+mcp__claude-in-chrome__get_screenshot → visual check
+```
+
+If the browser check reveals broken UI (missing elements, layout errors, blank page):
+treat it as a failed deliverable and retry. This catches visual issues that build/test
+commands miss.
+
 ### Integration commit
 
 After each deliverable is integrated (worktree merge complete) and build + tests pass,

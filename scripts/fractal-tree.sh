@@ -35,6 +35,20 @@ status_icon() {
   esac
 }
 
+# ── node counters (global, reset per tree) ───────────────────────────────────
+COUNT_SATISFIED=0
+COUNT_PENDING=0
+COUNT_PRUNED=0
+
+count_node() {
+  local status="$1"
+  case "$status" in
+    satisfied) COUNT_SATISFIED=$((COUNT_SATISFIED + 1)) ;;
+    pruned)    COUNT_PRUNED=$((COUNT_PRUNED + 1)) ;;
+    *)         COUNT_PENDING=$((COUNT_PENDING + 1)) ;;
+  esac
+}
+
 # ── render_tree <dir> <active_node_rel> <prefix> <is_root> ──────────────────
 # dir            — absolute path to this node's directory
 # active_node_rel— relative path of active node from tree root (or empty/".")
@@ -87,6 +101,7 @@ render_tree() {
       status="pending"
     fi
     icon="$(status_icon "$status")"
+    count_node "$status"
 
     # Active node marker — compare child's relative path to active_node_rel
     # active_node_rel may be a multi-segment path like "progressive-dx/contexto-cross-node"
@@ -146,8 +161,30 @@ render_one_tree() {
 
   root_icon="$(status_icon "$root_status")"
 
-  echo "${tree_name} ${root_icon}${root_active_marker}"
+  # Truncate root predicate to 80 chars
+  local pred_display=""
+  if [ -n "$root_pred" ]; then
+    if [ "${#root_pred}" -gt 80 ]; then
+      pred_display="  \"${root_pred:0:80}...\""
+    else
+      pred_display="  \"${root_pred}\""
+    fi
+  fi
+
+  # Reset counters and count root node itself
+  COUNT_SATISFIED=0
+  COUNT_PENDING=0
+  COUNT_PRUNED=0
+  count_node "$root_status"
+
+  echo "${tree_name} ${root_icon}${root_active_marker}${pred_display}"
   render_tree "$tree_dir" "$active_node" "" "1"
+
+  # Summary line
+  local total=$(( COUNT_SATISFIED + COUNT_PENDING + COUNT_PRUNED ))
+  echo ""
+  echo "${total} nodes: ${COUNT_SATISFIED} satisfied, ${COUNT_PENDING} pending, ${COUNT_PRUNED} pruned"
+  echo "legend: ✓ satisfied  ✗ pruned  ○ pending  ◀ active"
 }
 
 # ── main ─────────────────────────────────────────────────────────────────────
