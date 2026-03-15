@@ -94,6 +94,35 @@ Use this context when:
 The build/test commands come from project.md — without it, baseline check will fail
 with wrong commands.
 
+### Load standards
+
+After reading project.md, check for a standards file in the target repo:
+
+```bash
+STANDARDS="$REPO_ROOT/.claude/standards.md"
+if [ -f "$STANDARDS" ]; then
+  STD_BUILD=$(grep "^build:" "$STANDARDS" | sed 's/^build: //')
+  STD_TEST=$(grep "^test:" "$STANDARDS" | sed 's/^test: //')
+  STD_LINT=$(grep "^lint:" "$STANDARDS" | sed 's/^lint: //')
+  STD_TYPECHECK=$(grep "^type-check:" "$STANDARDS" | sed 's/^type-check: //')
+  STD_FORMAT=$(grep "^format:" "$STANDARDS" | sed 's/^format: //')
+  STD_COAUTHOR=$(grep "^co-author:" "$STANDARDS" | sed 's/^co-author: //')
+  STD_BRANCH_PREFIX=$(grep "^branch-prefix:" "$STANDARDS" | sed 's/^branch-prefix: //')
+  STD_MAX_LINES=$(grep "^max-lines-per-file:" "$STANDARDS" | awk '{print $2}')
+  STD_HOT_PREFLIGHT=$(grep "^hot-file-preflight:" "$STANDARDS" | awk '{print $2}')
+fi
+# Override project.md values with standards.md values (if present)
+BUILD_CMD=${STD_BUILD:-$BUILD_CMD}
+TEST_CMD=${STD_TEST:-$TEST_CMD}
+BRANCH_PREFIX=${STD_BRANCH_PREFIX:-$BRANCH_PREFIX}
+```
+
+Report what was loaded:
+- If standards.md exists: `Standards: loaded from .claude/standards.md (N fields)` — count non-empty STD_* variables
+- If not: `Standards: not found, using project.md defaults`
+
+Standards fields take precedence over project.md for any overlapping values. If standards.md doesn't exist, all behavior falls back to project.md (no breakage).
+
 ### Parse the Execution DAG
 
 Read the `## Execution DAG` section from plan.md and extract:
@@ -215,6 +244,26 @@ Before launching any subagent:
 If build or tests fail: **stop**. Report the failure. Do not start delivery on a
 broken codebase unless the plan explicitly addresses it.
 
+### Additional standards gates
+
+After build and test pass, run standards-defined quality gates if set:
+
+```bash
+# Lint gate
+if [ -n "$STD_LINT" ]; then
+  $STD_LINT
+  # If lint fails: stop and report. Do not continue.
+fi
+
+# Type-check gate
+if [ -n "$STD_TYPECHECK" ]; then
+  $STD_TYPECHECK
+  # If type-check fails: stop and report. Do not continue.
+fi
+```
+
+If `STD_LINT` or `STD_TYPECHECK` is not set (standards.md absent or field missing), skip these gates silently.
+
 ---
 
 ## Execution
@@ -257,14 +306,28 @@ Before sending the plan's prompt to a subagent, prepend runtime context:
 Repo: <name>
 Current branch: <branch>
 Worktree path: <path, if applicable>
-Build command: <from project.md>
-Test command: <from project.md>
+Build command: <from project.md, overridden by standards.md if present>
+Test command: <from project.md, overridden by standards.md if present>
 Hot files (read before editing): <list from project.md>
 Project context (prior deliveries): <satisfied nodes summary from project context, or "First node — no prior deliveries">
 
 [DELIVERABLE PROMPT]
 <original prompt from the plan>
 ```
+
+**Standards: hot-file preflight**
+
+If `STD_HOT_PREFLIGHT` is `true`, extend the `[EXECUTION CONTEXT]` block with an explicit instruction for the subagent:
+
+```
+Hot files — MANDATORY preflight:
+Read each of the following files BEFORE making any edits:
+- <hot file 1 from project.md>
+- <hot file 2 from project.md>
+These files contain shared interfaces, tokens, or conventions that your edits must respect.
+```
+
+If `STD_HOT_PREFLIGHT` is not `true` (or standards.md is absent), the hot files line in the context block remains informational only (no mandatory instruction added).
 
 If previous batches produced results relevant to this deliverable, append:
 ```
@@ -398,6 +461,10 @@ commit the changes immediately:
    is the deliverable title from the plan. Use the executor model declared in the DAG
    (e.g. `claude-sonnet-4-5`, `claude-haiku-4-5`).
 
+   **Standards commit format validation:**
+   - If `STD_FORMAT` is `conventional`: validate the commit message matches the conventional commits pattern (`^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?: .+`). If it does not match, rewrite the message to conform before committing.
+   - If `STD_COAUTHOR` is set: append an additional `Co-Authored-By: $STD_COAUTHOR` trailer to every commit (in addition to the executor model trailer already present).
+
 3. **If the commit fails due to a pre-commit hook:** fix the reported issue, re-stage
    the same files, and retry the commit. Do not skip hooks (`--no-verify`).
 
@@ -405,6 +472,23 @@ commit the changes immediately:
    deliverable, using the same message format.
 
 Do not push. Push is handled by `/fractal:ship`.
+
+### Standards: max-lines check
+
+After each integration commit, if `STD_MAX_LINES` is set, check all files in `files_changed` from the subagent's structured result:
+
+```bash
+if [ -n "$STD_MAX_LINES" ]; then
+  for f in <files_changed>; do
+    LINE_COUNT=$(wc -l < "$f")
+    if [ "$LINE_COUNT" -gt "$STD_MAX_LINES" ]; then
+      echo "Warning: $f has $LINE_COUNT lines (limit: $STD_MAX_LINES)"
+    fi
+  done
+fi
+```
+
+Append any warnings to the deliverable's result output. This is a non-blocking warning — do not stop delivery. The warning will be visible in results.md and the final report.
 
 ### Generate test-checklist.md
 
