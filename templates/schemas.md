@@ -249,3 +249,61 @@ STATUS=$(get_result_field D1 status)
 SUMMARY=$(get_result_field D1 summary)
 ERRORS=$(get_result_field D1 errors)
 ```
+
+---
+
+## Schema 9: Test Checklist (test-checklist.md)
+
+`/fractal:delivery` writes this file after all batches complete. It persists what the human needs to manually validate. The human marks pass/fail. `/fractal:review` reads it as input for evaluation.
+
+### Format
+
+```markdown
+# Test Checklist
+_Node: <node-path>_
+_Generated: <YYYY-MM-DD>_
+
+## How to use
+1. Run each test below
+2. Mark [x] for pass, [ ] for fail
+3. Add notes for any failures
+4. Run /fractal:review when done
+
+test: T1
+title: <human-readable test name>
+validates: <which aspect of the predicate this tests>
+from: D<N>
+steps:
+- <step 1 in plain language>
+- <step 2 in plain language>
+expected: <what you should see>
+result: [ ]
+notes:
+
+test: T2
+...
+```
+
+### Field rules
+
+| Field | Type | Rules |
+|---|---|---|
+| `test` | string | Unique test ID (T1, T2, ...) |
+| `title` | string | Human-readable name — what is being tested, not how |
+| `validates` | string | Which aspect of the predicate this test covers |
+| `from` | string | Which deliverable generated this test (D1, D2, etc.) |
+| `steps` | list | Plain language steps — no CLI commands unless unavoidable |
+| `expected` | string | Observable outcome in plain language |
+| `result` | checkbox | `[ ]` unchecked by default, `[x]` when human confirms pass |
+| `notes` | string | Human writes failure details here. Empty if pass. |
+
+### Parsing (grep/awk)
+
+```bash
+# Extract all test IDs and results
+awk '/^test:/ {id=$2} /^result:/ {print id, $0}' test-checklist.md
+
+# Count pass/fail
+PASS=$(grep -c '^result: \[x\]' test-checklist.md)
+FAIL=$(grep -c '^result: \[ \]' test-checklist.md)
+```
