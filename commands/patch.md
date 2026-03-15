@@ -44,6 +44,19 @@ DEPLOY_CMD=$(grep "^deploy:" "$SPEC" 2>/dev/null | sed 's/^deploy: //' | head -1
 HOT_FILES=$(awk '/^## Hot files/{found=1; next} found && /^- /{print substr($0,3)} found && /^##/{exit}' "$SPEC" 2>/dev/null)
 ```
 
+### Verify fractal tree exists
+
+```bash
+FRACTAL_DIR="$REPO_ROOT/.fractal"
+if [ ! -d "$FRACTAL_DIR" ] || [ -z "$(ls -d "$FRACTAL_DIR"/*/root.md 2>/dev/null)" ]; then
+  # No tree found
+fi
+```
+
+If no tree exists: STOP with message "Nenhuma árvore fractal encontrada. Execute /fractal:init primeiro."
+
+If a tree exists, read the active_node from root.md for later use when creating the leaf node.
+
 ### Parse arguments
 
 `$ARGUMENTS` is the description of what to implement. It is **required**.
@@ -77,7 +90,7 @@ Signs it is **too complex**:
 If too complex, say:
 
 > "I think this might be too complex for a quick patch — it involves [reason]. Want me
-> to continue with `/fractal:patch`, or would `/fractal` be a better starting
+> to continue with `/fractal:patch`, or would `/fractal:run` be a better starting
 > point?"
 
 This is a suggestion, not a blocker. If the user says "continue" or "just do it" — proceed.
@@ -344,18 +357,33 @@ Done.
 
 ---
 
-## Orphan node persistence
+## Tree node persistence
 
-When `/fractal:patch` runs **outside** a fractal tree context (no `active_node` in any
-`root.md`, or invoked standalone without `/fractal` routing), and the user **approves**
-the result, persist an orphan node:
+When the user **approves** the patch result, persist a leaf node in the fractal tree.
+
+**Step 0 — Locate tree context:**
 
 ```bash
-ORPHAN_DIR="$FRACTAL_DIR/_orphans/patch-<slug>"
-mkdir -p "$ORPHAN_DIR"
+TREE_DIR=$(ls -d "$FRACTAL_DIR"/*/ 2>/dev/null | head -1)
+ROOT_MD="$TREE_DIR/root.md"
+ACTIVE_NODE=$(grep "^active_node:" "$ROOT_MD" | sed 's/^active_node: //' | tr -d '"')
 ```
 
-Write `predicate.md`:
+If `active_node` is `"."` or empty, place the leaf directly under the tree root.
+Otherwise, place it under the active node's directory.
+
+**Step 1 — Create leaf node:**
+
+```bash
+PARENT_DIR="$TREE_DIR"
+if [ "$ACTIVE_NODE" != "." ] && [ -n "$ACTIVE_NODE" ]; then
+  PARENT_DIR="$TREE_DIR/$ACTIVE_NODE"
+fi
+NODE_DIR="$PARENT_DIR/patch-<slug>"
+mkdir -p "$NODE_DIR"
+```
+
+**Step 2 — Write predicate.md:**
 
 ```markdown
 ---
@@ -367,7 +395,7 @@ origin: patch
 
 # Notes
 
-Implemented via /fractal:patch (orphan — no parent tree).
+Implemented via /fractal:patch.
 
 ## Result
 <subagent summary>
@@ -376,11 +404,9 @@ Implemented via /fractal:patch (orphan — no parent tree).
 <list>
 ```
 
-When `/fractal:patch` is invoked **from within** a tree (via `/fractal` routing with an
-active node), do NOT create an orphan — the active node's `predicate.md` status is
-updated by the `/fractal` skill after validation.
+This replaces the previous orphan node system. Patches always belong to the tree.
 
-If discarded, no orphan is created.
+If discarded, no node is created.
 
 ---
 
@@ -389,17 +415,18 @@ If discarded, no orphan is created.
 - **Zero questions is the default.** Only ask if ambiguity would cause significant rework.
 - **Worktree is always isolated.** No option to implement directly on the current branch.
 - **Complexity check is a suggestion, not a blocker.** User can always override.
-- **Orphan nodes on standalone approve.** When approved outside a tree, persist as orphan node in `.fractal/_orphans/`.
+- **Tree required. Patch refuses to run without a fractal tree.**
 - **Subagent always uses `patch-worker` agent** (`agents/patch-worker.md`). Never opus.
 - **Build + test is a hard gate on approval.** Stop and report if it fails. Never force a broken PR.
-- **References to other skills use full prefix:** `/fractal`, `/fractal:planning`, `/fractal:delivery`, `/fractal:ship`, etc.
-- **Patch nodes are implicitly leaf nodes.** Discovery is skipped — the predicate is assumed to be sprint-sized by definition. No `discovery.md` or `prd.md` is written.
+- **References to other skills use full prefix:** `/fractal:run`, `/fractal:planning`, `/fractal:delivery`, `/fractal:ship`, etc.
+- **Patch nodes are implicitly leaf nodes, always persisted in the tree.** Discovery is skipped — the predicate is assumed to be sprint-sized by definition. No `discovery.md` or `prd.md` is written.
 
 ---
 
 ## When NOT to use
 
-- Complex feature with multiple risks → use `/fractal`
+- Complex feature with multiple risks → use `/fractal:run`
 - Already have a predicate and need a plan → use `/fractal:planning`
 - Already have a plan, need orchestration → use `/fractal:delivery`
 - Bug investigation (cause unknown) → use `/debug` or `/fix`
+- No fractal tree exists → run `/fractal:init` first

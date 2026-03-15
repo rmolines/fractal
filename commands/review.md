@@ -391,7 +391,7 @@ Decision: Back to discovery
 Misclassification: <what was wrong with the discovery>
 
 Deleting discovery.md and prd.md to force re-evaluation.
-Run /fractal to re-discover this node.
+Run /fractal:run to re-discover this node.
 ```
 
 **Back to fractal:**
@@ -401,7 +401,7 @@ Decision: Back to fractal
 Missing from predicate: <what needs to be added>
 Recommendation: <what to investigate or revise in the predicate>
 
-Run /fractal:fractal <node-path> to re-evaluate the node.
+Run /fractal:run <node-path> to re-evaluate the node.
 Review findings persisted — fractal will read them automatically after /clear.
 ```
 
@@ -443,4 +443,4 @@ You are the PM/designer who holds the line. This means:
 - Before `/fractal:delivery` completes — need code to evaluate
 - For code quality / simplification → that's `/fractal:ship`
 - For shipping → use `/fractal:ship`
-- Without predicate or plan → do review manually or run `/fractal:fractal` first
+- Without predicate or plan → do review manually or run `/fractal:run` first

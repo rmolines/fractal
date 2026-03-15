@@ -39,7 +39,7 @@ fractal(predicate):
 ### Skill chain (execution order)
 
 1. `/fractal:init` — bootstrap: extract objective, create tree
-2. `/fractal` — idempotent state machine (main entry point, call repeatedly)
+2. `/fractal:run` — idempotent state machine (main entry point, call repeatedly)
 3. `/fractal:patch` — fast path for trivial leaf predicates
 4. `/fractal:planning` → `/fractal:delivery` → `/fractal:review` → `/fractal:ship` — sprint cycle for complex predicates
 5. `/fractal:doctor` — tree integrity validation
@@ -62,7 +62,7 @@ The filesystem IS the state. No database, no JSON.
   - `plan.md` exists → planned (run delivery)
   - `plan.md` + `results.md` → executed (run review)
   - `plan.md` + `results.md` + `review.md` → reviewed (validate, then ship)
-- `learnings.md` — accumulated human corrections (read on every `/fractal` entry)
+- `learnings.md` — accumulated human corrections (read on every `/fractal:run` entry)
 
 Directory name = kebab-case slug of predicate. Nesting = depth.
 

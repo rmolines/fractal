@@ -61,9 +61,9 @@ files_relevant:
 
 ### Field semantics
 
-- `achievable: no` → predicate cannot be satisfied given current constraints. `/fractal` will propose pruning.
+- `achievable: no` → predicate cannot be satisfied given current constraints. `/fractal:run` will propose pruning.
 - `node_type: branch` → fill `proposed_children` (2-5 items), leave `prd_seed` empty
 - `node_type: leaf` → fill `prd_seed`, leave `proposed_children` empty
-- `confidence: low` → `/fractal` will emphasize human validation of the classification
+- `confidence: low` → `/fractal:run` will emphasize human validation of the classification
 - Each `proposed_children` item must be a falsifiable predicate, not a task
 - `prd_seed` must be one sentence that scopes the PRD — not the predicate restated, but the concrete scope of work

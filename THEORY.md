@@ -191,4 +191,4 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 
 The implementation is operational as a Claude Code plugin. The on-disk tree format lives in `.fractal/` with `root.md` and `predicate.md` per node. Nodes are classified as branch (composite) or leaf (executable) via a discovery phase that writes `discovery.md`. Leaf nodes get `prd.md` before sprint. `view.sh` generates an HTML dashboard for visualization. Model delegation is active: Opus orchestrates, Sonnet executes via subagents. Git integration uses worktrees for isolation with full commit/push/PR flow. Future direction: OpenServer as programmatic state machine management layer.
 
-The skill chain: `/fractal:init` (bootstrap), `/fractal` (idempotent state machine with discovery), `/fractal:patch`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:doctor` (tree validation).
+The skill chain: `/fractal:init` (bootstrap), `/fractal:run` (idempotent state machine with discovery), `/fractal:patch`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:doctor` (tree validation).

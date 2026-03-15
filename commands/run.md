@@ -4,7 +4,7 @@ argument-hint: "(none needed — auto-discovers single tree)"
 allowed-tools: Skill(fractal *), Agent, Bash, Read, Write, Edit, Glob, AskUserQuestion
 ---
 
-# /fractal
+# /fractal:run
 
 ## Human gates
 
@@ -53,7 +53,7 @@ ASCEND → [depth=0: COMPLETE → STOP | else: update pointer → self-invoke �
 ```
 
 Every transition persists to disk BEFORE acting. This guarantees idempotency:
-calling `/fractal` again from the same state produces the same behavior.
+calling `/fractal:run` again from the same state produces the same behavior.
 
 ---
 
@@ -99,8 +99,8 @@ Use `AskUserQuestion`:
 
 > "Próximo foco sugerido: '<selected_predicate>' (<selected_node>). Confirma?"
 
-- **Confirmed** → update `active_node` in `root.md` to `selected_node`. Invoke `/fractal`. STOP.
-- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Update `active_node` in `root.md` to the human's chosen path. Invoke `/fractal`. STOP.
+- **Confirmed** → update `active_node` in `root.md` to `selected_node`. Invoke `/fractal:run`. STOP.
+- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Update `active_node` in `root.md` to the human's chosen path. Invoke `/fractal:run`. STOP.
 
 ### 2. SHOW
 
@@ -193,12 +193,12 @@ created: <YYYY-MM-DD>
 **Then execute:**
 
 - **Patch** → invoke `/fractal:patch <sub_predicate text>`. STOP.
-  After patch completes, the next `/fractal` invocation will enter VALIDATE
+  After patch completes, the next `/fractal:run` invocation will enter VALIDATE
   (the node will have execution artifacts and human can validate).
 
 - **Sprint** → invoke `/fractal:planning <node_dir_path>`. STOP.
   Follow with `/fractal:delivery`, `/fractal:review`, `/fractal:ship` — each
-  receiving the same node dir path. After sprint completes, re-invoke `/fractal`.
+  receiving the same node dir path. After sprint completes, re-invoke `/fractal:run`.
 
 ### 4c. SUBDIVIDE
 
@@ -245,7 +245,7 @@ Recomendo o #1. Aceita, ou prefere outro?
 If human rejects ALL and proposes something different → create their proposal as
 active child, keep agent's as candidates, capture learning in `learnings.md`.
 
-**Then:** invoke `/fractal`. STOP.
+**Then:** invoke `/fractal:run`. STOP.
 
 ### 5. VALIDATE (post-execution)
 
@@ -253,7 +253,7 @@ After patch or sprint completes and human has seen the result.
 
 Ask: "O predicado foi satisfeito?"
 - **Yes** → write `status: satisfied` in active node's `predicate.md`. → go to step 6 (ASCEND).
-- **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal`. STOP.
+- **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
 
 ### 6. ASCEND (return)
 
@@ -265,7 +265,7 @@ Active node is satisfied or pruned. Bubble up.
 
 6b. Reset `active_node` in `root.md` to `"."`.
 
-6c. Print: "Nó [satisfied|pruned]. Ponteiro resetado — próximo /fractal vai sugerir o foco." STOP.
+6c. Print: "Nó [satisfied|pruned]. Ponteiro resetado — próximo /fractal:run vai sugerir o foco." STOP.
 
 ---
 
@@ -277,7 +277,7 @@ If the user decides the root objective has changed mid-execution:
 2. Update `predicate` field with new objective
 3. Reset `active_node` to `.`
 4. Capture learning in `.fractal/learnings.md`
-5. Invoke `/fractal`. STOP.
+5. Invoke `/fractal:run`. STOP.
 
 ---
 
@@ -295,7 +295,7 @@ Each receives the node directory path as argument. Artifacts are saved inside th
 
 - **ONE question at a time.** Never stack questions.
 - **ALWAYS write to disk before acting.** No transition without persistence.
-- **After invoking `/fractal` or any Skill, STOP.** Each invocation handles one step.
+- **After invoking `/fractal:run` or any Skill, STOP.** Each invocation handles one step.
 - **Push back.** Challenge scope, assumptions, predicate quality.
 - **The filesystem is truth.** Always read before acting, always save after.
 - **HITL always.** Validate every proposed predicate. Validate every result.

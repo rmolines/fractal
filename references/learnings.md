@@ -28,7 +28,7 @@ Append to `.fractal/learnings.md` (create if it doesn't exist):
 
 ### How to use
 
-On every `/fractal` entry, if `.fractal/learnings.md` exists, **read it**. Use the
+On every `/fractal:run` entry, if `.fractal/learnings.md` exists, **read it**. Use the
 accumulated insights to:
 - Propose better-calibrated predicates (avoid patterns the human has rejected before)
 - Understand the human's abstraction preferences (too concrete? too abstract?)

@@ -33,7 +33,7 @@ Once the problem is clear, evaluate whether it's one predicate or multiple:
 > value independently. I suggest we create separate nodes for each. Which one first?"
 
 Then create child directories under `.fractal/` — each with its own `predicate.md`.
-The user runs `/fractal` on each independently.
+The user runs `/fractal:run` on each independently.
 
 ### Identify risks
 

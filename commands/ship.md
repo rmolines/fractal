@@ -427,7 +427,7 @@ The fractal primitive, when next invoked on the parent, will re-evaluate.
 - Worktree: <removed | not applicable>
 - Predicate: status set to satisfied in ${NODE_DIR}/predicate.md
 
-Cycle closed. Next: /fractal for the next node.
+Cycle closed. Next: /fractal:run for the next node.
 ```
 
 ---

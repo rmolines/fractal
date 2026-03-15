@@ -1,5 +1,5 @@
 ---
-description: "Transforms a fractal predicate into an executable plan with self-contained deliverables, dependency graph, and human gates. Use after /fractal produces a predicate.md."
+description: "Transforms a fractal predicate into an executable plan with self-contained deliverables, dependency graph, and human gates. Use after /fractal:run produces a predicate.md."
 argument-hint: "path to the fractal node directory (e.g. .fractal/node-slug)"
 allowed-tools: AskUserQuestion
 user-invocable: false
@@ -42,7 +42,7 @@ PREDICATE="${NODE_DIR}/predicate.md"
 ```
 
 If $ARGUMENTS is empty: read `.fractal/root.md` → get `active_node` → use that.
-If predicate.md not found: stop with "No predicate found. Run /fractal first."
+If predicate.md not found: stop with "No predicate found. Run /fractal:run first."
 
 Read in parallel:
 1. `predicate.md` — the falsifiable condition. This IS the requirement.
@@ -167,9 +167,9 @@ If the predicate looks too broad:
 Warning: this predicate looks like it covers multiple independent hypotheses.
 A plan with this scope will produce vague, oversized deliverables.
 
-Consider going back to /fractal to subdivide this node into child nodes:
-  /fractal <node-slug>/child-1
-  /fractal <node-slug>/child-2
+Consider going back to /fractal:run to subdivide this node into child nodes:
+  /fractal:run <node-slug>/child-1
+  /fractal:run <node-slug>/child-2
 
 Continue anyway? (The plan will be larger and less precise.)
 ```
@@ -509,7 +509,7 @@ Recommend /clear before continuing.
 | Prompt assumes session context | Include ALL needed context in the prompt — no implicit state |
 | All deliverables sequential without reason | Find parallelism — if they don't touch the same files, they can be parallel |
 | Deliverable without validation | Add a command that confirms the concrete result |
-| Plan with 9+ deliverables | The predicate is too broad — go back to /fractal and subdivide into child nodes |
+| Plan with 9+ deliverables | The predicate is too broad — go back to /fractal:run and subdivide into child nodes |
 | Opus as default executor | Sonnet executes. Opus only for complex architectural reasoning — justify |
 | Vague prompt ("implement feature X") | Include paths, relevant snippets, resolved decisions, explicit boundaries |
 | Gate after every deliverable | Gates only at real review points — not at every step |
@@ -520,7 +520,7 @@ Recommend /clear before continuing.
 
 ## When NOT to use
 
-- No predicate exists → run `/fractal` first
-- Predicate is a draft (not falsifiable) → refine with `/fractal` first
+- No predicate exists → run `/fractal:run` first
+- Predicate is a draft (not falsifiable) → refine with `/fractal:run` first
 - Plan already exists and is approved → run `/fractal:delivery`
 - Trivial change that doesn't need a plan → go straight to code

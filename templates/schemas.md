@@ -150,7 +150,7 @@ ACCEPTANCE=$(get_field D1 acceptance)
 
 ## Schema 3: Discovery Output (discovery.md)
 
-The evaluator writes this file after classifying a predicate node as branch or leaf. `/fractal` reads it to route the node through the correct path. Saved to the active node directory.
+The evaluator writes this file after classifying a predicate node as branch or leaf. `/fractal:run` reads it to route the node through the correct path. Saved to the active node directory.
 
 ### Format
 
@@ -187,7 +187,7 @@ What was found in the repo, what informed the classification.
 
 - **branch** — the predicate is too large or composite for a single sprint. Children decompose it. Branch nodes never get `prd.md`, `plan.md`, or other sprint artifacts.
 - **leaf** — the predicate is sprint-sized. A PRD can be written from `prd_seed`, and `planning → delivery → review → ship` executes against it.
-- **confidence: low** — `/fractal` should present the classification to the human with extra emphasis on validation. The evaluator is uncertain.
+- **confidence: low** — `/fractal:run` should present the classification to the human with extra emphasis on validation. The evaluator is uncertain.
 
 ### Parsing
 

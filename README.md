@@ -43,14 +43,14 @@ Yes.
 
 ------- next day -------
 
-$ /fractal
+$ /fractal:run
 
 > Reading .fractal/stripe-billing/ ...
 > Active node: webhook-handler. plan.md exists, no results.md.
 > Picking up at delivery.
 ```
 
-Session dies, you come back, run `/fractal` with no arguments. It reads the
+Session dies, you come back, run `/fractal:run` with no arguments. It reads the
 filesystem and knows where it left off.
 
 ## How is this different?
@@ -82,7 +82,7 @@ fractal(predicate):
 curl -fsSL https://raw.githubusercontent.com/rmolines/openpredicatree/master/install.sh | bash
 ```
 
-Start a new session (quit and run `claude` again). Run `/fractal` in any repo.
+Start a new session (quit and run `claude` again). Run `/fractal:run` in any repo.
 
 ## The tree
 
@@ -112,8 +112,8 @@ No database. No JSON. `ls` shows the tree. `cat` shows where you are.
 
 The plugin installs a chain of skills into Claude Code:
 
-- `/fractal:init` — bootstrap. Extract an objective, create the tree, hand off to `/fractal`.
-- `/fractal` — idempotent state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge.
+- `/fractal:init` — bootstrap. Extract an objective, create the tree, hand off to `/fractal:run`.
+- `/fractal:run` — idempotent state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge.
 - `/fractal:patch` — fast patch for small changes that don't need the full cycle.
 - `/fractal:planning` — transforms a predicate into an executable plan.
 - `/fractal:delivery` — orchestrates subagents to execute the plan.

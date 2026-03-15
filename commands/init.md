@@ -1,5 +1,5 @@
 ---
-description: "Bootstrap: extract objective, create fractal tree, then hand off to /fractal. Use to start a new project or redefine an existing objective."
+description: "Bootstrap: extract objective, create fractal tree, then hand off to /fractal:run. Use to start a new project or redefine an existing objective."
 argument-hint: "objective in natural language, or empty to auto-detect"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Glob
 ---
@@ -52,7 +52,7 @@ If `.fractal/learnings.md` exists, read it to calibrate predicate proposals.
 - **No `.fractal/` dir OR no trees inside + $ARGUMENTS** → use $ARGUMENTS as objective. Go to Phase 0.
 - **`.fractal/` has exactly 1 tree + no $ARGUMENTS** → show tree status (run `fractal-state.sh`), ask:
   "Árvore existente: '<root_predicate>'. Quer continuar ou redefinir o objetivo?"
-  - Continue → invoke `/fractal`. STOP.
+  - Continue → invoke `/fractal:run`. STOP.
   - Redefine → go to Phase 0 (mutation path).
 - **`.fractal/` has exactly 1 tree + $ARGUMENTS** → treat as new/redefined objective. Go to Phase 0 (mutation path).
 - **Multiple trees** → "Múltiplas árvores encontradas. Execute /fractal:doctor --fix para limpar."
@@ -102,11 +102,19 @@ Previous roots are recorded here when the objective mutates.
 
 **Note:** Root nodes are always branch nodes — they are satisfied by the composition of
 their children, not by a sprint. No `discovery.md` is written at init time. The first
-`/fractal` invocation will trigger discovery on the root or its first child.
+`/fractal:run` invocation will trigger discovery on the root or its first child.
 
 4. Confirm to user: "Arvore criada em .fractal/<slug>/."
 
-5. Invoke `/fractal`. STOP.
+5. Check for standards.md:
+
+If no `.claude/standards.md` exists in the repo, use `AskUserQuestion` to offer:
+- Question: "Repo sem standards.md. Gerar draft automático?"
+- Options: "Sim, gerar" / "Pular"
+- If "Sim, gerar" → run `bash scripts/generate-standards.sh --write` via Bash tool
+- If "Pular" → continue
+
+6. Invoke `/fractal:run`. STOP.
 
 ## Step 5: Mutation path (existing tree)
 
@@ -124,7 +132,7 @@ When redefining an existing tree's objective:
    Insight: objective mutation — original scope was <reason>
    ```
 6. Confirm to user: "Objetivo redefinido."
-7. Invoke `/fractal`. STOP.
+7. Invoke `/fractal:run`. STOP.
 
 ---
 
@@ -134,5 +142,5 @@ When redefining an existing tree's objective:
 - Push back on vague or unfalsifiable predicates.
 - Phase 0 depth calibrated to context.
 - Single-tree constraint: never create a second tree. If tree exists → mutation or continue.
-- After tree creation or continue → always end with `/fractal`. STOP.
+- After tree creation or continue → always end with `/fractal:run`. STOP.
 - Subagents use model: sonnet. Never opus.

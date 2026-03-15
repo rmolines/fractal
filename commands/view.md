@@ -10,4 +10,4 @@ bash view.sh
 
 If there is no `.fractal/` directory in the current repo, tell the user:
 
-> "Nenhuma árvore fractal neste projeto. Use /fractal para começar."
+> "Nenhuma árvore fractal neste projeto. Use /fractal:run para começar."

@@ -50,7 +50,7 @@ created: 2026-03-14
 Previous roots are recorded here when the objective mutates.
 ```
 
-**`active_node`** is a session-scoped pointer. `active_node: .` means no session focus — the next `/fractal` invocation will traverse the tree, identify the highest-priority pending node, and present it to the human for validation. A relative path (e.g. `dados-cet/endpoint-geojson`) indicates an active session is working on that node.
+**`active_node`** is a session-scoped pointer. `active_node: .` means no session focus — the next `/fractal:run` invocation will traverse the tree, identify the highest-priority pending node, and present it to the human for validation. A relative path (e.g. `dados-cet/endpoint-geojson`) indicates an active session is working on that node.
 
 ### predicate.md (inside each node directory)
 
@@ -160,7 +160,7 @@ A new session reads `predicate.md` and has full context. If notes are empty, con
 - Directory name = slug of the predicate (kebab-case, short)
 - Depth = nesting of directories
 - Status is in `predicate.md` frontmatter, execution state is derived from artifacts
-- `active_node` in `root.md` is a session pointer — `"."` means no focus (next /fractal discovers), a relative path means an active session is working on that node
+- `active_node` in `root.md` is a session pointer — `"."` means no focus (next /fractal:run discovers), a relative path means an active session is working on that node
 - Cycle artifacts (`plan.md`, `results.md`, `review.md`) follow schemas in `templates/schemas.md`
 - Discovery artifact (`discovery.md`) follows Schema 3 in `templates/schemas.md`
 - PRD artifact (`prd.md`) follows Schema 6 in `templates/schemas.md`
