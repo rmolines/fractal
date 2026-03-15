@@ -430,7 +430,7 @@ If deliverables ran in worktree isolation:
 ### Browser smoke test (UI deliverables)
 
 After worktree merge and before committing, if the deliverable has a `human_test` that
-references a URL or UI element, use Chrome automation tools to pre-validate:
+references a URL or UI element, use Chrome automation tools to do a quick sanity check:
 
 ```
 mcp__claude-in-chrome__navigate → target URL
@@ -438,8 +438,9 @@ mcp__claude-in-chrome__get_screenshot → visual check
 ```
 
 If the browser check reveals broken UI (missing elements, layout errors, blank page):
-treat it as a failed deliverable and retry. This catches visual issues that build/test
-commands miss.
+treat it as a failed deliverable and retry. This catches critical regressions before
+committing. Detailed per-test browser validation happens later in the
+"Auto-validate test checklist" section after all deliverables complete.
 
 ### Integration commit
 
@@ -525,6 +526,82 @@ If no deliverables have human tests: write a test-checklist.md with only the hea
 
 ---
 
+### Auto-validate test checklist
+
+After generating test-checklist.md, attempt to automatically execute as many tests as possible. This reduces the human review burden and surfaces failures early.
+
+#### 1. Classify each test
+
+For each entry T1, T2, ... in test-checklist.md, inspect its `steps:` field and classify:
+
+| Type | Classification criteria |
+|---|---|
+| `browser` | Steps mention URLs (http/https), "open", "navigate", "page", "screen", "click", "form", or UI element names |
+| `cli` | Steps mention running commands, checking files, verifying output, reading logs |
+| `manual` | Steps require human judgment: "verify the design feels right", "check accessibility", "confirm the copy reads well" |
+
+#### 2. Execute browser tests
+
+For each `browser` test, use Chrome automation tools:
+
+```
+mcp__claude-in-chrome__navigate → extract the target URL from the steps field
+mcp__claude-in-chrome__get_page_text → extract page content
+mcp__claude-in-chrome__find → locate elements expected by the test
+```
+
+Compare what is found against the test's `expected:` field. The test passes if the expected element or content is present; fails otherwise.
+
+If Chrome automation tools are unavailable or raise an error, treat the test as `manual` (skip gracefully — do not block delivery).
+
+#### 3. Execute CLI tests
+
+For each `cli` test, run the command described in `steps:` using Bash with a **30-second timeout**:
+
+```bash
+timeout 30 <command from steps>
+```
+
+Compare the output against `expected:`. The test passes if output matches; fails if it does not or if the command times out.
+
+#### 4. Skip manual tests
+
+Leave `manual` tests with `result: [ ]` unchanged. They require human judgment and cannot be automated.
+
+#### 5. Update test-checklist.md in place
+
+After attempting auto-validation, rewrite only the `result:` and `notes:` fields for each test. Never modify `steps:` or `expected:`.
+
+- **Test passed:** `result: [x]` + `notes: Auto-validated by delivery`
+- **Test failed:** `result: [ ]` + `notes: Auto-validation failed: <reason>`
+- **Test skipped (manual or tool unavailable):** `result: [ ]` + `notes: Requires human validation`
+
+#### 6. Report auto-validation summary
+
+After updating test-checklist.md, print:
+
+```
+## Auto-validation results
+- T1: PASS (browser) — <what was verified>
+- T2: PASS (cli) — <what was verified>
+- T3: SKIPPED (manual) — requires human validation
+- T4: FAIL (cli) — expected "200 OK", got "connection refused"
+
+Auto-validated: N/M tests
+Remaining for human: K tests
+```
+
+Track these numbers — `N` (passed), `M` (total), `K` (remaining for human) — for the final report.
+
+#### Important rules
+
+- Auto-validation is **best-effort**. A failed auto-validation does NOT block delivery.
+- Auto-validated results (pass or fail) still appear in the review checklist. The human can override any result.
+- CLI tests must have a 30-second timeout — do not let a hanging command stall delivery.
+- Never modify `steps:` or `expected:` fields.
+
+---
+
 ### Persist results
 
 After all batches complete and before generating the final report, write `results.md` to the node directory:
@@ -563,7 +640,8 @@ Deliverables:
 Build: passed
 Tests: X/Y passed
 
-Test checklist: <N> manual tests saved to <node-dir>/test-checklist.md
+Test checklist: <N> tests saved to <node-dir>/test-checklist.md
+Auto-validated: <X>/<N> tests passed, <K> remaining for human
 
 Next step: /fractal:review <path to node directory>
 ```
