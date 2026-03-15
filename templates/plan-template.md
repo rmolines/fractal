@@ -60,6 +60,7 @@ is being solved and for whom. Used by the executor to verify alignment during ex
 > ```
 
 **Acceptance:** `<command>` → <what must pass/return>
+**Human test:** <plain language — what the user should do and what they should observe, no CLI commands>
 
 ---
 
@@ -102,6 +103,7 @@ is being solved and for whom. Used by the executor to verify alignment during ex
 > ```
 
 **Acceptance:** `<command>` → <what must pass/return>
+**Human test:** <plain language — what the user should do and what they should observe, no CLI commands>
 
 ---
 
@@ -186,6 +188,7 @@ files: src/path/to/file.ts, src/path/to/other.ts
 requirements: R1, R2
 max_retries: 2
 acceptance: <build/test command> exits 0
+human_test: <plain language description of what the user should do and observe>
 
 task: D2
 title: <short active title>
@@ -197,6 +200,7 @@ files: src/path/to/file2.ts
 requirements: R1
 max_retries: 2
 acceptance: <build/test command> exits 0
+human_test: <plain language description of what the user should do and observe>
 
 task: D3
 title: <short active title>
@@ -208,6 +212,7 @@ files: README.md, .env.example
 requirements: R2
 max_retries: 2
 acceptance: grep "<NEW_VAR>" .env.example returns the line
+human_test: No manual test needed — covered by automated validation
 
 task: D4
 title: <short active title>
@@ -219,6 +224,7 @@ files: src/path/to/file3.ts
 requirements:
 max_retries: 2
 acceptance: <command> exits 0
+human_test: <plain language description of what the user should do and observe>
 
 task: D5
 title: <short active title>
@@ -230,6 +236,7 @@ files: tests/integration/file.test.ts
 requirements:
 max_retries: 2
 acceptance: <command> exits 0
+human_test: <plain language description of what the user should do and observe>
 
 ---
 
