@@ -342,12 +342,52 @@ Done.
 
 ---
 
+## Orphan node persistence
+
+When `/fractal:try` runs **outside** a fractal tree context (no `active_node` in any
+`root.md`, or invoked standalone without `/fractal` routing), and the user **approves**
+the result, persist an orphan node:
+
+```bash
+ORPHAN_DIR="$FRACTAL_DIR/_orphans/try-<slug>"
+mkdir -p "$ORPHAN_DIR"
+```
+
+Write `predicate.md`:
+
+```markdown
+---
+predicate: "<$ARGUMENTS>"
+status: satisfied
+created: <date>
+origin: try
+---
+
+# Notes
+
+Implemented via /fractal:try (orphan — no parent tree).
+
+## Result
+<subagent summary>
+
+## Files changed
+<list>
+```
+
+When `/fractal:try` is invoked **from within** a tree (via `/fractal` routing with an
+active node), do NOT create an orphan — the active node's `predicate.md` status is
+updated by the `/fractal` skill after validation.
+
+If discarded, no orphan is created.
+
+---
+
 ## Rules
 
 - **Zero questions is the default.** Only ask if ambiguity would cause significant rework.
 - **Worktree is always isolated.** No option to implement directly on the current branch.
 - **Complexity check is a suggestion, not a blocker.** User can always override.
-- **No artifacts persisted.** No predicate.md, plan.md — nothing written to `.fractal/` except the code itself.
+- **Orphan nodes on standalone approve.** When approved outside a tree, persist as orphan node in `.fractal/_orphans/`.
 - **Subagent always uses model: sonnet.** Never opus.
 - **Build + test is a hard gate on approval.** Stop and report if it fails. Never force a broken PR.
 - **References to other skills use full prefix:** `/fractal`, `/fractal:planning`, `/fractal:delivery`, `/fractal:ship`, etc.
