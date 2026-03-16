@@ -20,6 +20,7 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
       plan.md                  # from /fractal:planning
       results.md               # from /fractal:delivery
       review.md                # from /fractal:review
+      conclusion.md            # from satisfaction: what was achieved
       endpoint-geojson/        # nested predicate (grandchild)
         predicate.md
         discovery.md
@@ -27,6 +28,7 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
         plan.md
         results.md
         review.md
+        conclusion.md          # from satisfaction: what was achieved
     mapa-renderiza/            # branch node (child of root)
       predicate.md
       discovery.md             # node_type: branch — no prd.md
@@ -100,6 +102,7 @@ proposed_children:                    # branch only — YAML list
   - "child predicate 1"
   - "child predicate 2"
 prd_seed: "one-sentence PRD scope"   # leaf only
+leaf_type: patch | cycle | action    # leaf only
 incerteza: high | medium | low        # risk-return: max(executabilidade, coerência, verificabilidade)
 impacto: high | medium | low          # risk-return: how much satisfying this moves the parent
 retorno: high | medium | low          # risk-return: value gained vs. effort required
@@ -144,6 +147,32 @@ created: 2026-03-15
 into concrete acceptance criteria that `/fractal:planning` uses to extract functional
 requirements and build deliverables. The human validates `prd.md` before sprint begins.
 
+### conclusion.md (inside node directories, written at satisfaction)
+
+````markdown
+---
+predicate: "the verifiable condition from predicate.md"
+satisfied_date: 2026-03-16
+satisfied_by: ship | human | synthesis
+---
+
+## What was achieved
+1-3 sentences oriented toward the parent predicate. Not "what code was written" but "what changed in the world that makes this true."
+
+## Key decisions
+Decisions made during execution that constrain future work on sibling or parent predicates.
+
+## Deferred
+Items explicitly out of scope that may need future predicates.
+````
+
+`satisfied_by` indicates who wrote the conclusion:
+- **ship** — automated, written by `/fractal:ship` for technical leaves (patch/cycle)
+- **human** — captured from human evidence report for action leaves
+- **synthesis** — drafted by agent from children's conclusions, validated by human, for branches
+
+`conclusion.md` is the primary input for tree summaries and progressive disclosure. It answers "what does this node mean for the project?" without requiring the reader to open sprint artifacts.
+
 ### Deriving execution state from artifacts
 
 The execution state of a node is NEVER stored explicitly — it's derived from which
@@ -159,9 +188,12 @@ artifacts exist in the directory:
 | `plan.md` exists | Planned | Run delivery |
 | `plan.md` + `results.md` | Executed | Run review |
 | `plan.md` + `results.md` + `review.md` | Reviewed | HITL validate, then ship or redo |
-| `status: satisfied` in frontmatter | Satisfied | Move to parent |
+| `status: satisfied` + `conclusion.md` | Satisfied (with context) | Conclusion available for parent re-evaluation and tree summary |
+| `status: satisfied` in frontmatter (no conclusion.md) | Satisfied (legacy) | Move to parent — conclusion unavailable |
 | `status: pruned` in frontmatter | Pruned | Move to parent |
 | `status: candidate` in frontmatter | Candidate | Skip — hypothetical, not yet human-validated |
+
+A node may be `status: satisfied` without `conclusion.md` for legacy nodes. New satisfaction flows always write conclusions.
 
 This means a new session can always determine exactly where execution stopped by
 reading the filesystem. Zero stale state.

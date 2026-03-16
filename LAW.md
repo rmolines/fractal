@@ -19,7 +19,9 @@ fractal(predicate):
   if discovery.node_type == leaf:
     if discovery.leaf_type == action:
       present_action(predicate, discovery.prd_seed)
-      human reports evidence → satisfied | fractal(predicate)
+      evidence ← human_reports_evidence()
+      persist_conclusion(evidence)
+      human validates → satisfied | fractal(predicate)
 
     else:
       prd ← specify(predicate, discovery.prd_seed)
@@ -28,12 +30,13 @@ fractal(predicate):
       if discovery.leaf_type == patch:
         patch(prd)
         human validates → satisfied | fractal(predicate)
+        // ship writes conclusion.md on satisfaction
 
       else:  // cycle
         planning(prd)
         delivery(prd)
         review(prd)
-        ship(prd)
+        ship(prd)  // ship writes conclusion.md on satisfaction
         human validates → satisfied | fractal(predicate)
 
   else:  // branch
@@ -45,6 +48,9 @@ fractal(predicate):
     human validates proposal:
       if accepted → fractal(child), then fractal(predicate)
       if rejected → fractal(predicate)  // propose another or promote a candidate
+    // on re-evaluation after children satisfied:
+    // draft_conclusion ← synthesize(children.conclusions)
+    // human validates conclusion → satisfied | generate new child
 ```
 
 This operation is fractal. It works identically at any scale — from "build a company" to "rename this variable". There are no different kinds of planning. There is one operation, repeated.
@@ -57,7 +63,7 @@ The evaluator classifies every leaf into one of three execution modes, persisted
 
 - **patch** — resolves with a focused code change. Trivial scope, small blast radius, no architectural decisions. `/fractal:patch` handles it directly.
 - **cycle** — resolves with the full sprint: prd → plan → delivery → review → ship. Too complex or risky for a patch. Goes through the `specify` step first.
-- **action** — resolves with a real-world human action. The agent cannot execute this — it presents what needs to be done, the human performs the action and reports evidence. Examples: "discover client's main pain point", "validate pricing with 3 prospects". No code artifacts produced. Evidence is recorded in `discovery.md` or as a human note.
+- **action** — resolves with a real-world human action. The agent cannot execute this — it presents what needs to be done, the human performs the action and reports evidence. Examples: "discover client's main pain point", "validate pricing with 3 prospects". No code artifacts produced. Evidence is captured as `conclusion.md` when the human reports back.
 
 ### Mapping to the execution cycle
 
@@ -94,6 +100,30 @@ The human validates at two moments:
 - **Result:** the agent concludes it has satisfied the predicate, the human confirms it actually was
 
 Rejection on proposal → agent proposes another predicate. Rejection on result → agent redoes the execution. These are not special cases — they are natural re-evaluations of the primitive.
+
+### Satisfaction
+
+There are three satisfaction paths, each with its own conclusion-writing protocol.
+
+**Leaf (patch/cycle)** — agent-driven satisfaction:
+After ship marks `status: satisfied`, the ship step writes `conclusion.md` in the node directory. The agent has full context (review.md, results.md, PR) and writes it automatically.
+
+**Leaf (action)** — human-driven satisfaction:
+1. Agent presents what needs to be done + what evidence to bring back (from `prd_seed`)
+2. Human performs the real-world action
+3. Human returns and reports evidence (via AskUserQuestion gate)
+4. Agent captures the human's report as `conclusion.md`
+5. Agent asks: "does this satisfy the predicate?"
+6. If yes → `status: satisfied`, advance
+7. If not → agent reformulates what's missing, back to step 1
+
+**Branch** — compositional satisfaction:
+1. Child satisfied → run re-evaluates the branch
+2. If more children needed → propose next child, continue
+3. If "looks sufficient" → agent drafts conclusion from children's conclusions (synthesizes how children compose to satisfy the parent)
+4. Agent presents draft conclusion to human: "is this branch satisfied?"
+5. If yes → human validates/edits conclusion → `status: satisfied`
+6. If not → human says what's missing → generate new child
 
 ### Evaluate (Discovery)
 
@@ -133,11 +163,13 @@ All three modes are falsifiable — they differ in mechanism, not in rigor. A pr
 
 **Candidate:** a hypothetical sub-predicate generated during subdivision but not selected as the active child. Persists in the hierarchy for future discovery rounds. Not validated by the human until promoted to pending.
 
+**Conclusion:** per-node artifact written at the moment of satisfaction. Records what was achieved (oriented toward the parent predicate), key decisions made, and items explicitly deferred. For technical leaves, written automatically by ship. For action leaves, captured from the human's evidence report. For branches, synthesized from children's conclusions and validated by the human. Persisted as `conclusion.md` in the node directory. Conclusions enable progressive disclosure: the tree summary reads conclusions to present up-to-date project state without loading sprint artifacts.
+
 **Leaf type:** classification of how a leaf predicate is satisfied. Determined by the evaluator during discovery and persisted in `discovery.md`.
 
 - **patch** — trivially satisfiable by a focused code change. No architectural decisions, clear scope, small blast radius.
 - **cycle** — requires the full sprint: prd → plan → delivery → review → ship. Too complex or risky for a patch.
-- **action** — satisfiable only by a human action in the real world. The agent cannot execute this — it presents what needs to be done, the human performs the action and reports evidence. Examples: "client's primary pain point is documented after discovery call", "pricing validated with 3 prospects", "team alignment confirmed in meeting". Evidence is recorded in the predicate's `discovery.md` or as a human note.
+- **action** — satisfiable only by a human action in the real world. The agent cannot execute this — it presents what needs to be done, the human performs the action and reports evidence. Examples: "client's primary pain point is documented after discovery call", "pricing validated with 3 prospects", "team alignment confirmed in meeting". Evidence is captured as `conclusion.md` when the human reports back.
 
 ## The rules
 
