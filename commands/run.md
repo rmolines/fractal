@@ -129,7 +129,9 @@ Then route:
 
 - `state: error` → STOP. Print "Nenhuma arvore encontrada. Execute /fractal:init."
 - `active_status: satisfied` AND `depth: 0` → Print "Predicado raiz satisfeito." STOP.
-- `active_node: "."` AND `root_status` is NOT `satisfied` AND NOT `pruned` → **Session traversal** (see below).
+- `active_node: "."` AND `root_status` is NOT `satisfied` AND NOT `pruned`:
+  - If `children_total > 0` AND `has_discovery: false` → **Root re-evaluation.** The root has children and its discovery.md was deleted by ASCEND. Treat root as the active node and go directly to step 2 (SHOW). No session traversal needed.
+  - Otherwise → **Session traversal** (see below).
 - `active_node` is NOT `"."` → **check ownership first** (see below). This MUST happen before any other routing (including ASCEND for satisfied/pruned nodes).
 
 #### Ownership check (active_node is not ".")
