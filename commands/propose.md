@@ -1,7 +1,7 @@
 ---
-description: "Propose a new predicate and place it in the fractal tree. Use when you have an idea for a predicate but don't know where to put it."
-argument-hint: "predicate text in natural language, or empty to be prompted"
-allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob
+description: "Propose a new predicate and place it in the fractal tree. With no arguments, enters analyze mode: evaluates the active predicate and suggests a sub-predicate. With text, reframes and places it manually."
+argument-hint: "predicate text in natural language, or empty to analyze the active predicate"
+allowed-tools: AskUserQuestion, Agent, Bash, Read, Write, Edit, Glob
 ---
 
 # /fractal:propose
@@ -18,23 +18,186 @@ Prefix the question string with:
 
 <actual question>
 
-Variables come from the pre-loaded State section. If state is not yet loaded (e.g., early steps of /fractal:propose before tree detection), omit the header.
+Variables come from the pre-loaded State section. If state is not yet loaded (e.g., early steps before tree detection), omit the header.
 
 IMPORTANT: The header must be plain text. No markdown formatting (no **, ##, *, etc.) in the question string. Emojis are fine as visual anchors.
 
-Input: $ARGUMENTS — predicate text in natural language, or empty to be prompted.
+Input: $ARGUMENTS — predicate text in natural language, or empty to enter analyze mode.
 
 ---
 
-## Step 1: Parse input
+## Step 1: Route on arguments
 
-If `$ARGUMENTS` is empty, use `AskUserQuestion`:
+### If `$ARGUMENTS` IS provided
 
+Use it directly as the predicate text. Skip to Step 2 (Reframe).
+
+---
+
+### If `$ARGUMENTS` is empty — ANALYZE MODE
+
+Enter analyze mode. This evaluates the active predicate and proposes the next sub-predicate.
+
+#### Step A: Detect tree
+
+```bash
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+FRACTAL_DIR="$REPO_ROOT/.fractal"
+TREE_DIR=$(ls -d "$FRACTAL_DIR"/*/  2>/dev/null | while read d; do [ -f "${d}root.md" ] && echo "$d"; done | head -1)
+```
+
+If no tree found: STOP with message "Nenhuma árvore fractal encontrada. Execute /fractal:init primeiro."
+
+If multiple trees found: STOP with message "Múltiplas árvores encontradas. Execute /fractal:doctor --fix para limpar."
+
+```bash
+ROOT_MD="${TREE_DIR}root.md"
+ACTIVE_NODE=$(grep "^active_node:" "$ROOT_MD" | sed 's/^active_node:[[:space:]]*//' | tr -d '"')
+FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1)
+[ -z "$FRACTAL_SCRIPTS" ] && FRACTAL_SCRIPTS="$REPO_ROOT/scripts"
+bash "$FRACTAL_SCRIPTS/fractal-state.sh"
+```
+
+#### Step B: Determine target node
+
+- If `active_node` is `"."` or empty → target is the root predicate (read from `${TREE_DIR}root.md`, `predicate:` field)
+- Otherwise → target is the active predicate (read from `${TREE_DIR}${ACTIVE_NODE}/predicate.md`, `predicate:` field)
+
+Set:
+- `TARGET_PREDICATE` — the predicate text
+- `TARGET_DIR` — full path to the target node directory (use `$TREE_DIR` if root, or `${TREE_DIR%/}/$ACTIVE_NODE` otherwise)
+- `TARGET_PATH` — relative path within tree (`"."` if root, `$ACTIVE_NODE` otherwise)
+
+#### Step C: Show current tree
+
+```bash
+bash "$FRACTAL_SCRIPTS/fractal-tree.sh"
+```
+
+Print the tree output to give the human spatial awareness before any question.
+
+#### Step D: Spawn evaluate agent
+
+Collect existing children of the target node (same format as /fractal:run step 3):
+
+```bash
+EXISTING_CHILDREN=$(ls -d "$TARGET_DIR"/*/  2>/dev/null | while read d; do
+  [ -f "${d}predicate.md" ] && grep "^predicate:" "${d}predicate.md" | sed 's/^predicate:[[:space:]]*//'
+done | head -10)
+```
+
+```
+Agent(
+  description: "evaluate: <slug of TARGET_PREDICATE>",
+  subagent_type: "fractal:evaluate",
+  model: "sonnet",
+  prompt: "predicate: <TARGET_PREDICATE>\ntree_path: <TARGET_DIR>\nrepo_root: <REPO_ROOT>\nexisting_children:\n<EXISTING_CHILDREN>"
+)
+```
+
+Wait for response. Parse: `response`, `confidence`, `reasoning`, `child_predicate`, `child_type`, `prd_seed`, `leaf_type`.
+
+#### Step E: Route on response type
+
+**If `response: unachievable`:**
+Tell the user: "O predicado parece inatingível: <reasoning>. Considere usar /fractal:run para podá-lo." STOP.
+
+**If `response: leaf`:**
+Tell the user via plain output (no question needed):
+"O predicado '<TARGET_PREDICATE>' já é atômico (leaf): <prd_seed>. Use /fractal:run para executá-lo ou /fractal:patch para uma mudança rápida." STOP.
+
+**If `response: complete`:**
+Tell the user: "O predicado já está completamente decomposto. Nenhum novo sub-predicado necessário." STOP.
+
+**If `response: new_child`:**
+Proceed to Step F.
+
+#### Step F: Present proposed child
+
+Use `AskUserQuestion` (header: "Subdivisao"):
+
+Format:
+```
+📍 <breadcrumb> | PROPOSE
+🎯 <TARGET_PREDICATE (max 80 chars)>
+
+Novo sub-predicado proposto: "<child_predicate>" [<child_type>]
+Razao: <reasoning>
+
+Criar? (sim / nao — descreva alternativa)
+```
+
+Options:
+- "Sim, criar"
+- "Nao, quero propor outro"
+
+#### Step G: Act on response
+
+**"Sim, criar":** go to Step H with the single proposed child.
+
+**"Nao, quero propor outro":** fall back to the manual flow — ask for predicate text via `AskUserQuestion`:
 > "Qual predicado você quer propor?"
+Wait for response. Use that text as predicate text. Proceed to Step 2 (Reframe) with TREE_DIR and ACTIVE_NODE already known; skip Step 3.
 
-Wait for response. The answer becomes the predicate text.
+#### Step H: Create the child node
 
-If `$ARGUMENTS` is provided, use it directly as the predicate text.
+1. **Generate slug** (same rules as Step 6 below):
+   - Lowercase, replace spaces/special chars with hyphens, remove non-alphanumeric/hyphen chars
+   - Collapse multiple hyphens, strip leading/trailing, truncate to 30 chars at hyphen boundary
+   - Check uniqueness within TARGET_DIR; append `-2`, `-3` if collision
+
+2. **Create directory and write predicate.md:**
+
+```bash
+NODE_DIR="$TARGET_DIR/$SLUG"
+mkdir -p "$NODE_DIR"
+```
+
+Write `predicate.md`:
+
+```markdown
+---
+predicate: "<child_predicate>"
+status: pending
+created: <YYYY-MM-DD>
+proposed_by: evaluate
+---
+```
+
+Persist to disk before continuing.
+
+#### Step I: Show updated tree and offer focus redirect
+
+```bash
+bash "$FRACTAL_SCRIPTS/fractal-tree.sh"
+```
+
+Print the tree output.
+
+Use `AskUserQuestion` (header: "Foco"):
+
+```
+📍 <breadcrumb> | PROPOSE
+🎯 <TARGET_PREDICATE>
+
+Criado sub-predicado: "<child_predicate>"
+
+Redirecionar o foco para ele?
+```
+
+Options:
+- "Sim, focar em <slug>"
+- "Manter foco atual"
+
+**If the node is selected:**
+- Compute `NODE_REL` (path relative to TREE_DIR)
+- Update `active_node` in `root.md` to `NODE_REL`
+- Print: "Ponteiro atualizado para '<NODE_REL>'. Execute /fractal:run para continuar."
+
+**If "Manter foco atual":**
+- Print: "Sub-predicado criado. O foco continua em <ACTIVE_NODE or 'raiz'>."
+
+**STOP. Analyze mode complete.**
 
 ---
 
@@ -92,6 +255,8 @@ Once the predicate text is confirmed (either original if already well-formed, ap
 
 ## Step 3: Detect tree
 
+(Skip this step if coming from analyze mode — tree is already detected.)
+
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 FRACTAL_DIR="$REPO_ROOT/.fractal"
@@ -140,7 +305,7 @@ Filter out nodes with `status: satisfied` or `status: pruned` — never insert i
 ## Step 5: Present positions
 
 Select up to 4 positions to present. Priority order:
-1. Active node (if `status` is `pending` or `candidate`) — shown first
+1. Active node (if `status` is `pending`) — shown first
 2. Shallowest pending nodes first
 3. Alphabetical by path within same depth
 
@@ -272,7 +437,8 @@ Print the tree output.
 - Respect single-tree constraint. Never create a node if no tree exists.
 - Never insert into `satisfied` or `pruned` nodes — filter them from position list.
 - Generated slug must be unique within the parent directory — append suffix if collision.
-- Do not write `discovery.md` for the new node — that happens in `/fractal:run`.
-- Do not run the evaluator — just create the bare `predicate.md`.
+- Do not write `discovery.md` for new nodes — that happens in `/fractal:run`.
+- **Analyze mode (no args):** status of new nodes is always `pending`, proposed_by always `evaluate`.
+- **Manual mode (args provided):** status of new nodes is always `pending`, proposed_by always `human`.
 - Maximum 4 options in `AskUserQuestion`.
-- Status of new node is always `pending`, proposed_by always `human`.
+- Analyze mode does NOT run the full manual flow (Steps 2–9) unless the user picks "Nao, quero propor outro".

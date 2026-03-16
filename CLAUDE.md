@@ -29,11 +29,11 @@ No build step. No dependencies. Pure shell scripts + markdown skills.
 
 ```
 fractal(predicate):
-  discover(predicate)        → branch | leaf | unachievable
+  evaluate(predicate, existing_children)  → new_child | complete | leaf | unachievable
   if unachievable            → prune
-  if leaf, patch can satisfy → patch → human validates
-  if leaf, cycle needed      → prd → plan → build → review → ship → human validates
-  if branch                  → find riskiest child → human validates → recurse
+  if leaf                    → specify → execute → human validates
+  if new_child               → create child → human validates → recurse → re-evaluate parent
+  if complete                → validate branch satisfaction or select next pending child
 ```
 
 ### Skill chain (execution order)
@@ -52,13 +52,13 @@ Skills live in `commands/`. The evaluate subagent lives in `agents/evaluate.md`.
 The filesystem IS the state. No database, no JSON.
 
 - `root.md` — root predicate + `active_node` pointer (always exactly one per tree)
-- `predicate.md` — per node: verifiable condition, status (`pending|satisfied|pruned|candidate`)
-- `discovery.md` — per node (after evaluation): node_type (`branch|leaf`), classification
+- `predicate.md` — per node: verifiable condition, status (`pending|satisfied|pruned`)
+- `discovery.md` — per node (after evaluation): evaluator response (`new_child|complete|leaf|unachievable`). Ephemeral on parents — deleted when child ascends.
 - `prd.md` — leaf nodes only: acceptance criteria, out-of-scope, constraints
 - Execution state derived from artifact presence:
   - Only `predicate.md` → not started
-  - `discovery.md` exists (branch) → discovered, decompose into children
-  - `discovery.md` exists (leaf, no prd) → discovered, write prd
+  - `discovery.md` exists (new_child) → create proposed child, recurse
+  - `discovery.md` exists (leaf, no prd) → specify, write prd
   - `discovery.md` + `prd.md` → specified (run sprint)
   - `plan.md` exists → planned (run delivery)
   - `plan.md` + `results.md` → executed (run review)
@@ -102,5 +102,5 @@ All scripts auto-discover the single tree in `.fractal/` when called without arg
 - Human validates at two moments: proposal (predicate makes sense) and result (predicate satisfied)
 - Every transition persists to disk BEFORE acting (idempotency guarantee)
 - Subagents use `model: "sonnet"` by default. Exception: the evaluate subagent (`agents/evaluate.md`) uses `model: "opus"` — it's the highest-leverage decision point in the system and runs once per node
-- The evaluate subagent (`agents/evaluate.md`) runs discovery — classifies nodes as branch or leaf
+- The evaluate subagent (`agents/evaluate.md`) runs incremental evaluation — decides next step for each predicate (new_child, complete, leaf, or unachievable)
 - `AskUserQuestion` tool for all human gates (never plain text questions)

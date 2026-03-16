@@ -144,7 +144,6 @@ CHILDREN_TOTAL=0
 CHILDREN_SATISFIED=0
 CHILDREN_PENDING=0
 CHILDREN_PRUNED=0
-CHILDREN_CANDIDATE=0
 
 if [ -d "$ACTIVE_DIR" ]; then
   for CHILD_DIR in "$ACTIVE_DIR"/*/; do
@@ -156,7 +155,6 @@ if [ -d "$ACTIVE_DIR" ]; then
     case "$CHILD_STATUS" in
       satisfied)  CHILDREN_SATISFIED=$((CHILDREN_SATISFIED + 1)) ;;
       pruned)     CHILDREN_PRUNED=$((CHILDREN_PRUNED + 1)) ;;
-      candidate)  CHILDREN_CANDIDATE=$((CHILDREN_CANDIDATE + 1)) ;;
       *)          CHILDREN_PENDING=$((CHILDREN_PENDING + 1)) ;;
     esac
   done
@@ -176,9 +174,9 @@ HAS_PRD=false
 [ -f "$ACTIVE_DIR/discovery.md" ] && HAS_DISCOVERY=true
 [ -f "$ACTIVE_DIR/prd.md" ]       && HAS_PRD=true
 
-DISCOVERY_TYPE=""
+DISCOVERY_RESPONSE=""
 if [ "$HAS_DISCOVERY" = true ]; then
-  DISCOVERY_TYPE="$(get_field "$ACTIVE_DIR/discovery.md" node_type)"
+  DISCOVERY_RESPONSE="$(get_field "$ACTIVE_DIR/discovery.md" response)"
 fi
 
 # ── State derivation ─────────────────────────────────────────────────────────
@@ -195,10 +193,16 @@ elif [ "$HAS_PLAN" = true ]; then
   STATE="planned"
 elif [ "$HAS_DISCOVERY" = true ] && [ "$HAS_PRD" = true ]; then
   STATE="specified"
-elif [ "$HAS_DISCOVERY" = true ] && [ "$DISCOVERY_TYPE" = "branch" ]; then
-  STATE="discovered_branch"
+elif [ "$HAS_DISCOVERY" = true ] && [ "$DISCOVERY_RESPONSE" = "new_child" ]; then
+  STATE="evaluated_new_child"
+elif [ "$HAS_DISCOVERY" = true ] && [ "$DISCOVERY_RESPONSE" = "complete" ]; then
+  STATE="evaluated_complete"
+elif [ "$HAS_DISCOVERY" = true ] && [ "$DISCOVERY_RESPONSE" = "leaf" ]; then
+  STATE="evaluated_leaf"
+elif [ "$HAS_DISCOVERY" = true ] && [ "$DISCOVERY_RESPONSE" = "unachievable" ]; then
+  STATE="evaluated_unachievable"
 elif [ "$HAS_DISCOVERY" = true ]; then
-  STATE="discovered"
+  STATE="evaluated"
 elif [ "$CHILDREN_TOTAL" -gt 0 ]; then
   STATE="subdivided"
 else
@@ -222,10 +226,9 @@ echo "children_total: $CHILDREN_TOTAL"
 echo "children_satisfied: $CHILDREN_SATISFIED"
 echo "children_pending: $CHILDREN_PENDING"
 echo "children_pruned: $CHILDREN_PRUNED"
-echo "children_candidate: $CHILDREN_CANDIDATE"
 echo "has_plan: $HAS_PLAN"
 echo "has_results: $HAS_RESULTS"
 echo "has_review: $HAS_REVIEW"
 echo "has_discovery: $HAS_DISCOVERY"
 echo "has_prd: $HAS_PRD"
-echo "discovery_type: $DISCOVERY_TYPE"
+echo "discovery_response: $DISCOVERY_RESPONSE"

@@ -25,9 +25,9 @@ IMPORTANT: The header must be plain text. No markdown formatting (no **, ##, *, 
 ### Formatting rules for AskUserQuestion
 
 - **Question leads.** The actual question comes immediately after the header — not buried at the end. Context after, not before.
-- **header field** must be a short action-oriented label: "Foco", "Execucao", "Validacao", "Subdivisao", "Poda" — not a description of what the question is about.
+- **header field** must be a short action-oriented label: "Foco", "Execucao", "Validacao", "Decomposicao", "Poda" — not a description of what the question is about.
 - **Children status** (when relevant): use a compact inline format with visual indicators:
-  `child-name ✅ | child-name ⏳ candidate | child-name ⏳ pending`
+  `child-name ✅ | child-name ⏳ pending`
   Never describe children status in prose.
 - **No redundancy.** State each fact once. Don't explain the same status twice.
 - **Density.** Max 4 lines between header and question. Compress context, don't narrate it.
@@ -77,20 +77,43 @@ In all runtime bash calls below, `<scripts_path>` refers to this pre-loaded valu
 ## Statechart — the canonical spec
 
 ```
-GUARD → [error/no-tree: STOP | satisfied/pruned: ASCEND | else: SHOW]
-SHOW → DISCOVER
-DISCOVER → [has_discovery: ROUTE | else: spawn evaluator → write discovery.md → ROUTE]
-ROUTE → [unachievable: PRUNE | branch: SUBDIVIDE | leaf+no_prd: SPECIFY | leaf+prd: EXECUTE]
-SPECIFY → write prd.md → human validates → EXECUTE
+GUARD → [error/no-tree: STOP | root satisfied: STOP | else: SHOW]
+SHOW → EVALUATE
+EVALUATE → collect existing_children → spawn evaluator → write discovery.md → ROUTE
+ROUTE:
+  → unachievable: PRUNE → ASCEND
+  → leaf: SPECIFY → EXECUTE
+  → new_child: CREATE_CHILD → set active → self-invoke → STOP
+  → complete + has pending children: select next pending → self-invoke → STOP
+  → complete + all satisfied: VALIDATE → mark satisfied → ASCEND
 PRUNE → persist status:pruned → ASCEND
-EXECUTE → persist execution.md → [patch | sprint] → STOP
-SUBDIVIDE → persist candidates + child → update pointer → self-invoke → STOP
-VALIDATE → [satisfied: persist status:satisfied → ASCEND | not: self-invoke → STOP]
-ASCEND → [depth=0: COMPLETE → STOP | next_pending: advance pointer → self-invoke → STOP | no_pending: check parent → self-invoke → STOP]
+ASCEND → delete parent's discovery.md → set active=parent → self-invoke → STOP
+         [depth=0: COMPLETE → STOP]
 ```
 
 Every transition persists to disk BEFORE acting. This guarantees idempotency:
 calling `/fractal:run` again from the same state produces the same behavior.
+
+---
+
+## Dry run mode
+
+Check environment variable at the start of every invocation:
+
+```bash
+echo "${FRACTAL_DRY_RUN:-0}"
+```
+
+When `FRACTAL_DRY_RUN=1`, the state machine runs identically but with these overrides:
+
+1. **No human gates.** Every `AskUserQuestion` is replaced by auto-accepting the agent's recommendation. Print the decision instead (e.g., "🏃 DRY RUN — auto-aprovando: <choice>").
+2. **No locks.** Skip all `session-lock.sh` calls (create, remove, check). Treat ownership as always confirmed.
+3. **No execution.** When ROUTE reaches `leaf`, leave the node as `pending` (do NOT execute patch/sprint). Go directly to ASCEND.
+4. **Conversational stance is off.** No push-back, no challenges — just evaluate and recurse.
+
+The recursion is the same: each transition ends with `invoke /fractal:run → STOP`. The tree builds itself through the normal recursive invocation chain.
+
+**Purpose:** validate the fractal decomposition for any problem by building the full tree without executing anything. Analyze the resulting tree structure in `.fractal/`.
 
 ---
 
@@ -111,6 +134,8 @@ Then route:
 
 #### Ownership check (active_node is not ".")
 
+> **DRY RUN:** Skip ownership check entirely. Treat as always owned. Route directly based on `active_status`.
+
 Another session may have set `active_node` in `root.md`. Use the **pre-loaded lock status** to verify ownership. No bash call needed for the check.
 
 Parse the pre-loaded Lock output:
@@ -122,7 +147,7 @@ Parse the pre-loaded Lock output:
 
 After ownership is confirmed, route:
 
-- `active_status: satisfied` OR `active_status: pruned` → go to step 6 (ASCEND).
+- `active_status: satisfied` OR `active_status: pruned` → go to step 5 (ASCEND).
 - Otherwise → go to step 2 (SHOW).
 
 #### Session traversal (active_node is ".")
@@ -140,6 +165,8 @@ Parse the output:
 - `selected_node: none` → Print "Nenhum nó pending encontrado." STOP.
 - Otherwise → extract `selected_node` and `selected_predicate`.
 
+> **DRY RUN:** Skip `AskUserQuestion`. Print "🏃 DRY RUN — focando em: <selected_predicate>". Skip session lock. Update `active_node` in `root.md` to `selected_node`. Invoke `/fractal:run`. STOP.
+
 Use `AskUserQuestion` (header: "Foco"):
 
 ```
@@ -147,7 +174,6 @@ Use `AskUserQuestion` (header: "Foco"):
 🎯 <active_predicate>
 
 Focar em: "<selected_predicate>" (<selected_node>)?
-Selecionado por: <reason from select-next-node output>
 
 Confirma? (sim / escolher outro)
 ```
@@ -164,185 +190,195 @@ The tree is already pre-loaded — no bash call needed. Print:
 ```
 📍 <breadcrumb> | <state>
 🎯 <active_predicate>
-Filhos: <child-name> ✅ | <child-name> ⏳ candidate | <child-name> ⏳ pending
+Filhos: <child-name> ✅ | <child-name> ⏳ pending
 ```
 
-(Omit the Filhos line if there are no children. Replace each entry with the actual child slug and its status icon: ✅ satisfied, 🔴 pruned, ⏳ candidate or pending.)
+(Omit the Filhos line if there are no children. Replace each entry with the actual child slug and its status icon: ✅ satisfied, 🔴 pruned, ⏳ pending.)
 
 If notes exist in active_node's predicate.md → read them (context from prior session).
 If `.fractal/learnings.md` exists → read it (calibrate proposals).
 
-→ go to step 3 (DISCOVER).
+→ go to step 3 (EVALUATE).
 
-### 3. DISCOVER
+### 3. EVALUATE
 
-Spawn evaluator subagent:
+**Collect existing children** of the active node:
+
+For each child directory with `predicate.md`:
+- Read `status` from predicate.md
+- Read `response` from `discovery.md` (if exists) — this tells us if the child was evaluated
+- If `status: satisfied` and `conclusion.md` exists → read the conclusion summary
+
+Format as:
+```
+existing_children:
+- "<child predicate>" | status: <status> | evaluated: <response from discovery.md or "none">
+- "<child predicate>" | status: satisfied | evaluated: leaf | conclusion: "<What was achieved summary>"
+```
+
+If no children exist, `existing_children` is empty.
+
+**Spawn evaluator subagent:**
 
 ```
 Agent(
   description: "evaluate: <predicate slug>",
   subagent_type: "fractal:evaluate",
   model: "sonnet",
-  prompt: "predicate: <active_predicate>\ntree_path: <tree_path>\nrepo_root: <git root>"
+  prompt: "predicate: <active_predicate>\ntree_path: <tree_path>\nrepo_root: <git root>\nexisting_children:\n<formatted list>"
 )
 ```
 
-Wait for response. Parse: `achievable`, `node_type`, `confidence`, `proposed_children`, `prd_seed`, `reasoning`.
+Wait for response. Parse: `response`, `confidence`, `reasoning`, `child_predicate`, `child_type`, `prd_seed`, `leaf_type`.
 
-Present to human:
+**Persist discovery.md** with the evaluator's response BEFORE routing.
 
-- `achievable: no`:
-  "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nO predicado parece inatingivel: <reasoning>. Podar este no?"
-  → Confirmed → go to 4a (PRUNE)
-  → Denied → re-evaluate with human's additional context
+→ go to step 4 (ROUTE).
 
-- `node_type: leaf`:
-  Decide execution mode:
-  **Patch** if ALL: <=3 files, no architecture decisions, single concern, describable in 2-3 sentences.
-  **Sprint** otherwise.
-  "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nExecutar '<prd_seed>' via [patch|sprint]. <reasoning>. Aceita?"
-  → Confirmed → go to 4b (EXECUTE)
-  → Rejected → ask what human prefers
+### 4. ROUTE
 
-- `node_type: branch`:
-  Trigger candidate generation (see SUBDIVIDE step).
-  Present candidates to human.
-  → Confirmed → go to 4c (SUBDIVIDE)
-  → Rejected → generate alternatives or accept human proposal
+Based on the evaluator's `response` field:
 
-### 4a. PRUNE
+> **DRY RUN:** Skip all human presentation below. Auto-route directly. Print "🏃 DRY RUN — <response>: <reasoning summary (1 line)>".
 
-**Persist BEFORE acting:**
+#### 4a. ROUTE: unachievable → PRUNE
 
-1. Edit active node's `predicate.md`: set `status: pruned`
+Present to human (header: "Poda"):
+"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nO predicado parece inatingivel: <reasoning>. Podar este no?"
+→ Confirmed → set `status: pruned` in active node's `predicate.md`. → go to step 5 (ASCEND).
+→ Denied → re-evaluate with human's additional context.
 
-→ go to step 6 (ASCEND).
+#### 4b. ROUTE: leaf → SPECIFY → EXECUTE
 
-### 4b. EXECUTE (base case)
+Present to human (header: "Execucao"):
+"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nPredicado diretamente satisfazivel. <leaf_type>: '<prd_seed>'. <reasoning>. Aceita?"
+→ Confirmed → proceed to execution below.
+→ Rejected → ask what human prefers.
 
-The sub-predicate fits in one sprint. Persist, then run.
+> **DRY RUN:** Leave node as `pending`. Do NOT execute. Print "🏃 DRY RUN — leaf mapeada: <predicate>". → go to step 5 (ASCEND).
 
-**Persist BEFORE acting:**
+**SPECIFY:** If no `prd.md` exists, write it:
+- For `leaf_type: action` → write prd.md with evidence criteria (what human should bring back).
+- For `leaf_type: patch | cycle` → write prd.md with acceptance criteria, out-of-scope, constraints.
+- Human validates prd.md before execution.
 
-1. If the sub-predicate differs from the active node's predicate:
-   - Create child dir: `mkdir -p <tree_path>/<active_node_rel>/<slug>`
-   - Write `<slug>/predicate.md` with `status: pending`, `predicate`, `created`
-   - Update `active_node` in `root.md` to new child path
+**EXECUTE:**
 
-2. Write `execution.md` in the active node dir:
+Write `execution.md` in the active node dir:
 
 ```markdown
 ---
-mode: patch | sprint
-sub_predicate: "<sub_predicate>"
+mode: patch | sprint | action
+sub_predicate: "<predicate>"
 reasoning: "<evaluator reasoning>"
 created: <YYYY-MM-DD>
 ---
 ```
 
-**Then execute:**
+Then:
+- **action** → present what the human needs to do. STOP. Human reports evidence on next `/fractal:run`.
+- **patch** → invoke `/fractal:patch <predicate text>`. STOP.
+- **sprint** → invoke `/fractal:planning <node_dir_path>`. STOP.
 
-- **Patch** → invoke `/fractal:patch <sub_predicate text>`. STOP.
-  After patch completes, the next `/fractal:run` invocation will enter VALIDATE
-  (the node will have execution artifacts and human can validate).
-
-- **Sprint** → invoke `/fractal:planning <node_dir_path>`. STOP.
-  Follow with `/fractal:delivery`, `/fractal:review`, `/fractal:ship` — each
-  receiving the same node dir path. After sprint completes, re-invoke `/fractal:run`.
-
-### 4c. SUBDIVIDE
-
-The predicate is too large or uncertain. Generate candidates.
-
-**Step 0 — Check for existing candidates:**
-Scan child directories for `status: candidate`. If candidates exist, read them.
-They represent hypotheses from previous rounds — context may have changed.
-
-**Step 1 — Generate 3-5 candidate sub-predicates** (discovery.md contains proposed_children from the evaluator as a starting point)**:**
-Before generating, ask: "Do I have empirical knowledge or am I guessing?"
-If guessing → at least one candidate MUST be a strategy investigation.
-
-Each candidate has:
-- A falsifiable predicate statement
-- Type: scope decomposition | risk investigation | information acquisition
-- Why it reduces uncertainty about the parent
-
-**Step 2 — Select the best candidate:**
-The one that, once satisfied, most reduces uncertainty about the parent.
-Not the easiest. Not the most important. The most clarifying.
-
-**Step 3 — Present to human** (header: "Subdivisao"):
-
-```
-📍 <breadcrumb> | <state>
-🎯 <active_predicate>
-
-Qual sub-predicado focar primeiro?
-
-1. ★ "<selected>" — <why this most reduces uncertainty>
-2.   "<candidate 2>" — <rationale>
-3.   "<candidate 3>" — <rationale>
-[4-5 if generated]
-
-(★ = recomendado. Responda com numero ou descreva outro.)
-```
-
-**Step 4 — Persist ALL candidates BEFORE acting:**
-
-- **Selected candidate:** create child dir with `predicate.md` (`status: pending`).
-  Update `active_node` in `root.md`.
-- **Non-selected:** create their dirs with `predicate.md` (`status: candidate`).
-  Frontmatter: predicate, status, created, proposed_by, rationale.
-
-If human rejects ALL and proposes something different → create their proposal as
-active child, keep agent's as candidates, capture learning in `learnings.md`.
-
-**Then:** invoke `/fractal:run`. STOP.
-
-### 5. VALIDATE (post-execution)
-
-After patch or sprint completes and human has seen the result.
-
-Use `AskUserQuestion` (header: "Validacao"):
-
-```
-📍 <breadcrumb> | <state>
-🎯 <active_predicate>
-
-O predicado foi satisfeito?
-Entregue: <one-line summary of what was done>
-
-(sim / nao — se nao, descreva o que faltou)
-```
-
-- **Yes** → write `status: satisfied` in active node's `predicate.md`. → go to step 6 (ASCEND).
+After execution completes (next `/fractal:run` invocation):
+- Check if execution produced results (patch artifacts, results.md, or human evidence).
+- Use `AskUserQuestion` (header: "Validacao"): "O predicado foi satisfeito?"
+- **Yes** → write `status: satisfied` in `predicate.md`. Write `conclusion.md`. → go to step 5 (ASCEND).
 - **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
 
-### 6. ASCEND (return)
+#### 4c. ROUTE: new_child → CREATE CHILD
 
-Active node is satisfied or pruned. Bubble up.
+Present to human (header: "Decomposicao"):
+```
+📍 <breadcrumb> | <state>
+🎯 <active_predicate>
 
-6a. If `depth: 0` (root node):
-- If `active_status: satisfied` → "Predicado raiz satisfeito. Arvore completa." STOP.
-- If `active_status: pruned` → "Predicado raiz podado. Execute /fractal:init para redefinir." STOP.
+Novo sub-predicado proposto: "<child_predicate>" [<child_type>]
+Razao: <reasoning summary>
 
-6b. Remove session lock for the current node: `bash "<scripts_path>/session-lock.sh" remove <active_node>` (use pre-loaded Scripts path). Then run `select-next-node.sh` to find the next pending node:
-
-```bash
-bash "<scripts_path>/select-next-node.sh"
+Aceita? (sim / nao — descreva alternativa)
 ```
 
-6c. If `selected_node: none`:
-- Determine the parent path of the current `active_node` (strip last path segment).
-- If parent exists (depth > 1) → set `active_node` in `root.md` to the parent path. Print: "Nó [satisfied|pruned]. Sem pendentes — subindo para o pai '<parent_predicate>'." Invoke `/fractal:run`. STOP.
-- If at root level (depth = 1, parent is root) → set `active_node` in `root.md` to `"."`. Print: "Todos os predicados satisfeitos. Arvore completa." STOP.
+→ Confirmed → proceed to creation.
+→ Rejected → ask human for alternative. Capture learning in `learnings.md`.
 
-6d. If a next node was found:
-- Remove session lock for the old node (already done in 6b).
-- Create session lock for the new node: `bash "<scripts_path>/session-lock.sh" create <selected_node>`.
-- Update `active_node` in `root.md` to `selected_node` directly (no `"."` intermediate).
-- Print: "Nó [satisfied|pruned]. Avançando para '<selected_predicate>'."
-- Invoke `/fractal:run`. STOP.
+**Create child:**
+1. Generate slug from `child_predicate` (kebab-case, max 30 chars).
+2. `mkdir -p <tree_path>/<active_node_rel>/<slug>`
+3. Write `<slug>/predicate.md`:
+   ```markdown
+   ---
+   predicate: "<child_predicate>"
+   status: pending
+   created: <YYYY-MM-DD>
+   ---
+   ```
+4. Update `active_node` in `root.md` to the new child path.
+5. Invoke `/fractal:run`. STOP.
+
+#### 4d. ROUTE: complete
+
+The evaluator says no more children are needed.
+
+**If the node has pending children:**
+Select the next pending child (iterate child dirs, pick first with `status: pending`).
+Update `active_node` in `root.md` to that child.
+Invoke `/fractal:run`. STOP.
+
+> **DRY RUN with pending children:** → go to step 5 (ASCEND). The pending children were already mapped by previous recursions; the parent is fully decomposed.
+
+**If all children are satisfied (or satisfied + pruned with at least 1 satisfied):**
+Read conclusions from satisfied children. Present to human (header: "Validacao"):
+```
+📍 <breadcrumb> | <state>
+🎯 <active_predicate>
+
+Todos os filhos resolvidos. O predicado pai foi satisfeito?
+<child-name> ✅: <conclusion summary>
+<child-name> ✅: <conclusion summary>
+
+(sim / nao — descreva o que falta)
+```
+
+- **Yes** → write `status: satisfied` in `predicate.md`. Write `conclusion.md` (synthesized from children, `satisfied_by: synthesis`). → go to step 5 (ASCEND).
+- **No** → capture learning in `learnings.md`. Delete `discovery.md` (force re-evaluation to propose new child). Invoke `/fractal:run`. STOP.
+
+**If all children are pruned:**
+The predicate may be unachievable. Present to human: "Todos os filhos podados. Podar o pai também?"
+- Yes → set `status: pruned`. → ASCEND.
+- No → delete `discovery.md`. Invoke `/fractal:run`. STOP. (Evaluator will propose new approach.)
+
+**If node has no children (complete without children):**
+This is equivalent to `response: leaf` — the evaluator is saying the predicate is satisfiable as-is. Treat as 4b (leaf). This should be rare; if it happens, log it as unusual.
+
+### 5. ASCEND
+
+Active node is satisfied, pruned, or fully mapped (dry run).
+
+> **DRY RUN:** Skip all lock operations. Skip human questions. Auto-proceed.
+
+**5a.** If `depth: 0` (root node):
+- If `active_status: satisfied` → "Predicado raiz satisfeito. Arvore completa." STOP.
+- If `active_status: pruned` → "Predicado raiz podado. Execute /fractal:init para redefinir." STOP.
+- Dry run: "🏃 DRY RUN — arvore completa." STOP.
+
+**5b.** Remove session lock for the current node: `bash "<scripts_path>/session-lock.sh" remove <active_node>`.
+
+**5c.** Compute parent path (strip last path segment from `active_node`).
+If `active_node` has no `/` (depth 1), parent is `"."`.
+
+**5d.** Delete the **parent's** `discovery.md` (if it exists):
+```bash
+rm -f "<tree_path>/<parent_rel>/discovery.md"
+```
+This forces re-evaluation of the parent on the next `/fractal:run` invocation. The evaluator will see the newly satisfied/pruned child and decide: propose another child, or declare complete.
+
+**NOTE:** Only delete the PARENT's discovery.md. The current node's discovery.md is preserved — it contains `leaf_type`, `reasoning`, and other data that remains useful.
+
+**5e.** Update `active_node` in `root.md` to `parent_path`.
+
+Print: "Nó [satisfied|pruned]. Subindo para o pai."
+Invoke `/fractal:run`. STOP.
 
 ---
 
@@ -373,12 +409,14 @@ Each receives the node directory path as argument. Artifacts are saved inside th
 - **ONE question at a time.** Never stack questions.
 - **ALWAYS write to disk before acting.** No transition without persistence.
 - **After invoking `/fractal:run` or any Skill, STOP.** Each invocation handles one step.
-- **Push back.** Challenge scope, assumptions, predicate quality.
+- **Push back.** Challenge scope, assumptions, predicate quality. (Suspended in dry run mode.)
 - **The filesystem is truth.** Always read before acting, always save after.
-- **HITL always.** Validate every proposed predicate. Validate every result.
+- **HITL always.** Validate every proposed predicate. Validate every result. (Suspended in dry run mode.)
 - **Capture every invalidation.** When the human corrects the agent, write to `learnings.md`.
 - **Read learnings on SHOW.** Accumulated insights inform future proposals.
 - **Subagents use model: sonnet.** Never opus in a subagent.
 - **Single tree per repo.** Auto-discovered, no argument needed.
 - **ALWAYS persist discovery.md before routing.**
-- **PRD is required for leaf nodes before planning.**
+- **PRD is required for leaf nodes before execution.**
+- **ASCEND always goes to the parent.** Never use select-next-node in ASCEND. The parent is re-evaluated.
+- **Delete parent's discovery.md on ASCEND.** Forces re-evaluation with fresh context.

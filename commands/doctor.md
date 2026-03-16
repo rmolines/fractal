@@ -71,11 +71,14 @@ For every directory inside the tree (recursive), check:
 
 - `predicate.md` exists (dirs without it are orphans)
 - Frontmatter has `predicate` (non-empty)
-- `status` is valid (pending | satisfied | pruned | candidate)
+- `status` is valid (pending | satisfied | pruned)
 - `created` exists
 
 Orphan dirs: `[WARN] Diretorio orfao (sem predicate.md): <path>`
 - `--fix`: ask to remove
+
+Legacy status: `[WARN] Status legado 'candidate' em <path> — considere migrar para 'pending'`
+- No auto-fix (manual migration recommended)
 
 Invalid status: `[WARN] Status invalido '<status>' em <path>`
 - `--fix`: ask to set to `pending`
@@ -96,14 +99,15 @@ For nodes with `plan.md` + `results.md` + `review.md` but `status` != `satisfied
 ### Check 7: Discovery and PRD consistency
 
 For every node with `discovery.md`:
-- Read `node_type` from frontmatter
-- If `node_type: branch` and `prd.md` exists → `[WARN] prd.md on a branch node is inconsistent: <path>`
+- Read `response` from frontmatter
+- If `response: new_child` or `response: complete` (branch) and `prd.md` exists → `[WARN] prd.md on a branch node is inconsistent: <path>`
   - `--fix`: ask to remove prd.md
-- If `node_type: branch` and `plan.md` exists → `[WARN] Sprint artifacts on a branch node: <path>`
+- If `response: new_child` or `response: complete` (branch) and `plan.md` exists → `[WARN] Sprint artifacts on a branch node: <path>`
   - `--fix`: ask to remove sprint artifacts (plan.md, results.md, review.md)
-- If `node_type: leaf` and `plan.md` exists but no `prd.md` → `[WARN] Leaf node has plan but no prd.md (pre-update node): <path>`
+- If `response: leaf` and `plan.md` exists but no `prd.md` → `[WARN] Leaf node has plan but no prd.md (pre-update node): <path>`
   - No auto-fix (may be a node created before the PRD model update)
-- If `discovery.md` exists but `node_type` is not `branch` or `leaf` → `[WARN] Invalid node_type in discovery.md: <path>`
+- If `discovery.md` exists but `response` is not `new_child`, `complete`, `leaf`, or `unachievable` → `[WARN] Invalid response in discovery.md: <path>`
+- If `discovery.md` exists and has `node_type` field instead of `response` → `[WARN] Legacy discovery.md format (node_type) at <path> — consider migrating to response field`
 
 ---
 

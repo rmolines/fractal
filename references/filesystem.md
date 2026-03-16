@@ -15,7 +15,7 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
     dados-cet/                 # leaf node (child of root)
       predicate.md             # verifiable condition, status, notes
       session.lock             # optional: active session claim (auto-managed)
-      discovery.md             # from evaluator: node_type, classification
+      discovery.md             # from evaluator: response type + reasoning
       prd.md                   # from specify step: acceptance criteria (leaf only)
       plan.md                  # from /fractal:planning
       results.md               # from /fractal:delivery
@@ -31,7 +31,7 @@ or discard the sub-predicate. `/fractal:doctor` validates this constraint.
         conclusion.md          # from satisfaction: what was achieved
     mapa-renderiza/            # branch node (child of root)
       predicate.md
-      discovery.md             # node_type: branch — no prd.md
+      discovery.md             # branch (has children) — no prd.md
       regiao-filtro/           # child of branch
         predicate.md
 ```
@@ -58,7 +58,7 @@ Previous roots are recorded here when the objective mutates.
 ```markdown
 ---
 predicate: "the verifiable condition for this node"
-status: pending | satisfied | pruned | candidate
+status: pending | satisfied | pruned
 created: 2026-03-14
 ---
 
@@ -66,11 +66,6 @@ created: 2026-03-14
 
 Context from execution: what was tried, what was learned, why decisions were made.
 ```
-
-**Status `candidate`:** hypothetical sub-predicates generated during subdivision but not
-selected as the active child. They persist in the hierarchy for future discovery rounds.
-A candidate is NOT human-validated — it's the agent's hypothesis. When the parent is
-re-evaluated, existing candidates are read before proposing new sub-predicates.
 
 ### session.lock (inside node directories, auto-managed)
 
@@ -95,31 +90,37 @@ Created by `/fractal:run` when a session focuses on a node, removed on ASCEND.
 
 ```markdown
 ---
-node_type: branch | leaf
+response: new_child | complete | leaf | unachievable
 confidence: high | medium | low
-reasoning: "why this classification"
-proposed_children:                    # branch only — YAML list
-  - "child predicate 1"
-  - "child predicate 2"
-prd_seed: "one-sentence PRD scope"   # leaf only
-leaf_type: patch | cycle | action    # leaf only
-incerteza: high | medium | low        # risk-return: max(executabilidade, coerência, verificabilidade)
-impacto: high | medium | low          # risk-return: how much satisfying this moves the parent
-retorno: high | medium | low          # risk-return: value gained vs. effort required
+reasoning: "analysis considering existing children"
+child_predicate: "proposed child predicate"      # new_child only
+child_type: risk | acquisition | scope            # new_child only
+prd_seed: "one-sentence PRD scope"                # leaf only
+leaf_type: patch | cycle | action                 # leaf only
+incerteza: high | medium | low
+impacto: high | medium | low
+retorno: high | medium | low
 created: 2026-03-15
 ---
 
 # Discovery notes
 
-Context from the evaluator's investigation: what was found in the repo,
-what informed the classification decision.
+Context from the evaluator's investigation.
 ```
 
-**`node_type: branch`** — the predicate is composite. Satisfied when all children are satisfied.
-Branch nodes never have `prd.md`, `plan.md`, `results.md`, or `review.md`.
+**Ephemeral on branch parents:** when ASCEND returns to a parent node, the parent's
+`discovery.md` is deleted to force re-evaluation on the next visit. Child nodes retain
+their `discovery.md` — it preserves `leaf_type`, `reasoning`, and other classification data.
 
-**`node_type: leaf`** — the predicate is executable. A PRD can be written and a sprint
-executed against it. Leaf nodes get `prd.md` → `plan.md` → `results.md` → `review.md`.
+**`response: new_child`** — the predicate needs decomposition. One child is proposed per evaluation.
+Re-called after the child is resolved to check if more children are needed.
+
+**`response: complete`** — all necessary children exist, or none are needed (leaf-like but already has children).
+
+**`response: leaf`** — the predicate is directly satisfiable. `prd_seed` and `leaf_type` specify how.
+Leaf nodes get `prd.md` → `plan.md` → `results.md` → `review.md`.
+
+**`response: unachievable`** — the predicate cannot be satisfied. `/fractal:run` will propose pruning.
 
 ### prd.md (inside leaf node directories, written by specify step)
 
@@ -181,8 +182,10 @@ artifacts exist in the directory:
 | Artifacts present | Execution state | What to do |
 |---|---|---|
 | Only `predicate.md` | Not started | Run evaluator (discovery) |
-| `predicate.md` + `discovery.md` (node_type: branch) | Discovered (branch) | Decompose — generate/select children |
-| `predicate.md` + `discovery.md` (node_type: leaf) | Discovered (leaf) | Write prd.md (specify) |
+| `predicate.md` + `discovery.md` (response: new_child) | Evaluated (new_child) | Create proposed child, recurse |
+| `predicate.md` + `discovery.md` (response: leaf) | Evaluated (leaf) | Write prd.md (specify) or present action |
+| `predicate.md` + `discovery.md` (response: complete) | Evaluated (complete) | Select next pending child, or validate branch satisfaction |
+| `predicate.md` + `discovery.md` (response: unachievable) | Evaluated (unachievable) | Propose pruning to human |
 | `predicate.md` + `discovery.md` + `prd.md` | Specified | Run sprint: planning → delivery → review → ship |
 | `predicate.md` + child dirs | Subdivided | Check children's status |
 | `plan.md` exists | Planned | Run delivery |
@@ -191,7 +194,6 @@ artifacts exist in the directory:
 | `status: satisfied` + `conclusion.md` | Satisfied (with context) | Conclusion available for parent re-evaluation and tree summary |
 | `status: satisfied` in frontmatter (no conclusion.md) | Satisfied (legacy) | Move to parent — conclusion unavailable |
 | `status: pruned` in frontmatter | Pruned | Move to parent |
-| `status: candidate` in frontmatter | Candidate | Skip — hypothetical, not yet human-validated |
 
 A node may be `status: satisfied` without `conclusion.md` for legacy nodes. New satisfaction flows always write conclusions.
 

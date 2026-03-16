@@ -10,52 +10,55 @@ root_predicate ← extract_goal(human)  // precondition, not part of the primiti
 fractal(root_predicate)
 
 fractal(predicate):
-  discovery ← discover(predicate)  // evaluator classifies the node
+  response ← evaluate(predicate, existing_children)
 
-  if is_unachievable(predicate):
+  if is_unachievable(response):
     prune(predicate)
     return pruned
 
-  if discovery.node_type == leaf:
-    if discovery.leaf_type == action:
-      present_action(predicate, discovery.prd_seed)
-      evidence ← human_reports_evidence()
-      persist_conclusion(evidence)
-      human validates → satisfied | fractal(predicate)
+  if response.type == leaf:
+    if response.leaf_type == action:
+      present_action(predicate, response.prd_seed)
+      human reports evidence → satisfied | fractal(predicate)
 
     else:
-      prd ← specify(predicate, discovery.prd_seed)
+      prd ← specify(predicate, response.prd_seed)
       human validates prd
 
-      if discovery.leaf_type == patch:
+      if response.leaf_type == patch:
         patch(prd)
         human validates → satisfied | fractal(predicate)
-        // ship writes conclusion.md on satisfaction
 
       else:  // cycle
         planning(prd)
         delivery(prd)
         review(prd)
-        ship(prd)  // ship writes conclusion.md on satisfaction
+        ship(prd)
         human validates → satisfied | fractal(predicate)
 
-  else:  // branch
-    // evaluator proposed 3-5 candidates during discovery
-    // unchosen candidates persist in the hierarchy as hypotheses
-    candidates ← discovery.proposed_children
-    child ← select_best(candidates)
-    persist_as_candidates(candidates - child)
+  if response.type == new_child:
+    child ← create_pending(response.child_predicate)
     human validates proposal:
-      if accepted → fractal(child), then fractal(predicate)
-      if rejected → fractal(predicate)  // propose another or promote a candidate
-    // on re-evaluation after children satisfied:
-    // draft_conclusion ← synthesize(children.conclusions)
-    // human validates conclusion → satisfied | generate new child
+      if accepted → fractal(child)
+      if rejected → fractal(predicate)  // propose alternative
+    // after child resolves, re-evaluate parent:
+    delete discovery(predicate)  // force re-evaluation
+    fractal(predicate)  // re-enters with updated children
+
+  if response.type == complete:
+    if has_pending_children(predicate):
+      next ← select_pending_child()
+      fractal(next)
+      delete discovery(predicate)
+      fractal(predicate)
+    else:  // all children satisfied
+      draft_conclusion ← synthesize(children.conclusions)
+      human validates → satisfied | generate_new_child
 ```
 
 This operation is fractal. It works identically at any scale — from "build a company" to "rename this variable". There are no different kinds of planning. There is one operation, repeated.
 
-The tree grows lazy — one child at a time. After a child is satisfied, the parent is re-evaluated: maybe it's now satisfiable, maybe it needs another child. The re-evaluation decides.
+The tree grows incrementally — one child at a time. After a child is resolved, the parent is re-evaluated: the evaluator sees all existing children (including their conclusions) and decides whether more decomposition is needed. Branch and leaf are not classifications — they emerge from the evaluator's responses.
 
 ### Leaf execution modes
 
@@ -67,7 +70,7 @@ The evaluator classifies every leaf into one of three execution modes, persisted
 
 ### Mapping to the execution cycle
 
-- **Discovery** = a formalized phase. The evaluator examines the predicate and repo context, classifies the node as branch or leaf (with `leaf_type`: patch, cycle, or action), and writes `discovery.md`. For branches, it proposes candidate children. For leaves, it provides a `prd_seed` — the one-sentence scope of the PRD (or, for `action` leaves, the evidence required).
+- **Discovery** = a formalized phase. The evaluator examines the predicate, its existing children, and repo context. It returns one of four responses (`new_child`, `complete`, `leaf`, `unachievable`) and writes `discovery.md`. For `leaf` responses, it provides a `prd_seed` — the one-sentence scope of the PRD (or, for `action` leaves, the evidence required). Parent `discovery.md` is deleted when a child ascends, forcing re-evaluation.
 - **Specify** = the step that turns a leaf's `prd_seed` into a full `prd.md` with acceptance criteria, out-of-scope, and constraints. Human validates before sprint begins. Only applies to `patch` and `cycle` leaves.
 - **Planning → Delivery → Review → Ship** = the atomic execution unit for `cycle` leaf predicates. Reads `prd.md` as primary requirement.
 - **Patch** = shortcut for `patch` leaf predicates — trivially satisfiable without a full sprint.
@@ -127,13 +130,14 @@ After ship marks `status: satisfied`, the ship step writes `conclusion.md` in th
 
 ### Evaluate (Discovery)
 
-The mechanism that drives the branching decisions in the primitive. An evaluate subagent receives a predicate and the full repo context. It answers one question: "Is this a branch (composite — satisfied by children) or a leaf (executable — satisfied by a sprint)?"
+The mechanism that drives all branching and routing decisions in the primitive. An evaluate subagent receives a predicate, its existing children (with status and conclusions), and the full repo context. It returns exactly one of four responses:
 
-For branches: the evaluator proposes 2-5 candidate child predicates that together cover the parent. Each candidate is independently verifiable.
+- **new_child** — the predicate needs decomposition. One child is proposed, prioritizing risk/acquisition before scope.
+- **complete** — all necessary children exist. No more decomposition needed.
+- **leaf** — the predicate is directly satisfiable. Includes `prd_seed` and `leaf_type`.
+- **unachievable** — the predicate cannot be satisfied given current constraints.
 
-For leaves: the evaluator provides a `prd_seed` — one-sentence scope for the PRD that will be written in the specify step.
-
-Its output is persisted as `discovery.md` before routing. The fractal skill reads the classification and routes accordingly: branch → subdivide, leaf → specify → execute. Evaluate is the intelligence inside the conditional — everything else in the primitive is structure.
+The evaluator is called repeatedly on the same node as children are resolved. Each call sees the updated tree. Its output is persisted as `discovery.md` before routing — but `discovery.md` on parent nodes is deleted when a child ascends, forcing re-evaluation with fresh context. Child nodes retain their `discovery.md`.
 
 ## Definitions
 
@@ -153,15 +157,13 @@ All three modes are falsifiable — they differ in mechanism, not in rigor. A pr
 
 **Root predicate:** the goal extracted from the human. It sits in the useful abstraction window — specific enough to reject irrelevant steps, abstract enough to survive implementation changes. Always satisfiable (the human judges when the goal is reached).
 
-**Discovery:** the formalized evaluation phase. The evaluator examines a predicate, classifies it as branch or leaf, and produces `discovery.md`. This happens once per node. The presence of `discovery.md` indicates the node has been classified.
+**Discovery:** the ephemeral evaluation artifact. The evaluator examines a predicate and its existing children, writes `discovery.md` with its response. Parent nodes' `discovery.md` is deleted when a child ascends, forcing re-evaluation. Child nodes retain theirs.
 
 **Active node:** a session-scoped pointer to the predicate being worked on. Between sessions, `active_node` rests at `"."` (root). When `/fractal:run` is invoked and the pointer is at root, the system traverses the tree, identifies the highest-priority pending node, and presents it to the human for validation. Within a session, there is always exactly one active node per tree.
 
 **Tree:** the single predicate tree for a repository. Each repo has at most one tree under `.fractal/`. If a sub-predicate falls outside the scope of the root predicate, either redefine the root (objective mutation) or discard the sub-predicate. Tree creation and objective mutation are handled by `/fractal:init`.
 
 **Pruned:** a predicate the agent recognized as unachievable. Permanent at that node, but does not kill the parent — it forces re-evaluation and generation of another path.
-
-**Candidate:** a hypothetical sub-predicate generated during subdivision but not selected as the active child. Persists in the hierarchy for future discovery rounds. Not validated by the human until promoted to pending.
 
 **Conclusion:** per-node artifact written at the moment of satisfaction. Records what was achieved (oriented toward the parent predicate), key decisions made, and items explicitly deferred. For technical leaves, written automatically by ship. For action leaves, captured from the human's evidence report. For branches, synthesized from children's conclusions and validated by the human. Persisted as `conclusion.md` in the node directory. Conclusions enable progressive disclosure: the tree summary reads conclusions to present up-to-date project state without loading sprint artifacts.
 
@@ -312,4 +314,4 @@ Value gained relative to effort required. **High** = large payoff for small inve
 | 3 | Incerteza **baixa** | Execution risk only — do after higher-uncertainty nodes |
 | Tiebreak | Same tier | impacto alto + retorno alto > impacto alto + retorno médio > … |
 
-The evaluate agent uses this model when proposing candidate children (ordered by priority). `select-next-node` uses this model when traversing the tree to choose the next active node.
+The evaluate agent uses this model when proposing child predicates (prioritizing highest-uncertainty nodes). `select-next-node` uses this model when traversing the tree to choose the next active node.

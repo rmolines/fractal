@@ -5,10 +5,8 @@ set -euo pipefail
 # Usage: bash scripts/select-next-node.sh [tree-path]
 #   No argument: auto-discovers the single tree in .fractal/
 #
-# Priority (3-tier):
-#   Tier 1: Undiscovered (no discovery.md) — shallowest first, alphabetical tiebreak
-#   Tier 2: Branch nodes (discovery.md with node_type: branch) — shallowest first, alphabetical tiebreak
-#   Tier 3: Leaf nodes (discovery.md with node_type: leaf) — deepest first, alphabetical tiebreak
+# Priority: shallowest pending node first, alphabetical tiebreak.
+# Used for session traversal (start of session). ASCEND goes directly to parent.
 
 if [ $# -lt 1 ]; then
   if [ ! -d ".fractal" ]; then
@@ -117,7 +115,6 @@ if [ "$PENDING_COUNT" -eq 0 ]; then
   echo "selected_node: none"
   echo "selected_predicate: none"
   echo "pending_count: 0"
-  echo "leaf_pending_count: 0"
   echo "locked_count: 0"
   exit 0
 fi
@@ -174,45 +171,15 @@ if [ "${#PENDING_NODES[@]}" -eq 0 ]; then
   echo "selected_node: none"
   echo "selected_predicate: none"
   echo "pending_count: $PENDING_COUNT"
-  echo "leaf_pending_count: 0"
   echo "locked_count: $LOCKED_COUNT"
   echo "reason: all_pending_locked"
   exit 0
 fi
 
-# ── Classify pending nodes into 3 tiers ──────────────────────────────────────
+# ── Select shallowest pending node ───────────────────────────────────────────
 
-TIER1_NODES=()   # Undiscovered: no discovery.md
-TIER2_NODES=()   # Branch: discovery.md with node_type: branch
-TIER3_NODES=()   # Leaf: discovery.md with node_type: leaf
-
-for node_rel in "${PENDING_NODES[@]}"; do
-  node_dir="$TREE_PATH/$node_rel"
-  discovery_file="$node_dir/discovery.md"
-
-  if [ ! -f "$discovery_file" ]; then
-    TIER1_NODES+=("$node_rel")
-  else
-    node_type="$(get_field "$discovery_file" node_type)"
-    if [ "$node_type" = "branch" ]; then
-      TIER2_NODES+=("$node_rel")
-    else
-      # leaf or any other classified node
-      TIER3_NODES+=("$node_rel")
-    fi
-  fi
-done
-
-LEAF_PENDING_COUNT="${#TIER3_NODES[@]}"
-
-# ── Select from highest non-empty tier ────────────────────────────────────────
-
-if [ "${#TIER1_NODES[@]}" -gt 0 ]; then
-  SELECTED_NODE="$(select_shallowest "${TIER1_NODES[@]}")"
-elif [ "${#TIER2_NODES[@]}" -gt 0 ]; then
-  SELECTED_NODE="$(select_shallowest "${TIER2_NODES[@]}")"
-else
-  SELECTED_NODE="$(select_deepest "${TIER3_NODES[@]}")"
+if [ "${#PENDING_NODES[@]}" -gt 0 ]; then
+  SELECTED_NODE="$(select_shallowest "${PENDING_NODES[@]}")"
 fi
 
 # ── Read selected predicate text ──────────────────────────────────────────────
@@ -224,5 +191,4 @@ SELECTED_PREDICATE="$(get_field "$TREE_PATH/$SELECTED_NODE/predicate.md" predica
 echo "selected_node: $SELECTED_NODE"
 echo "selected_predicate: $SELECTED_PREDICATE"
 echo "pending_count: $PENDING_COUNT"
-echo "leaf_pending_count: $LEAF_PENDING_COUNT"
 echo "locked_count: $LOCKED_COUNT"

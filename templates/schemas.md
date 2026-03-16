@@ -150,51 +150,64 @@ ACCEPTANCE=$(get_field D1 acceptance)
 
 ## Schema 3: Discovery Output (discovery.md)
 
-The evaluator writes this file after classifying a predicate node as branch or leaf. `/fractal:run` reads it to route the node through the correct path. Saved to the active node directory.
+The evaluator writes this file after each evaluation of a predicate node. `/fractal:run` reads it to route the node. Saved to the active node directory.
+
+**Ephemeral on branch parents:** when ASCEND returns to a parent node, the parent's `discovery.md` is deleted to force re-evaluation. Child nodes retain their `discovery.md`.
 
 ### Format
 
 ```markdown
 ---
-node_type: branch | leaf
+response: new_child | complete | leaf | unachievable
 confidence: high | medium | low
-reasoning: "2-3 sentences explaining the classification"
-proposed_children:
-  - "child predicate 1"
-  - "child predicate 2"
-  - "child predicate 3"
+reasoning: "analysis considering existing children"
+child_predicate: "proposed child predicate"
+child_type: risk | acquisition | scope
 prd_seed: "one-sentence scope for the PRD"
+leaf_type: patch | cycle | action
+incerteza: high | medium | low
+impacto: high | medium | low
+retorno: high | medium | low
 created: YYYY-MM-DD
 ---
 
 # Discovery notes
 
-What was found in the repo, what informed the classification.
+What was found, what informed the decision. For re-evaluations: what changed since last visit.
 ```
 
 ### Field rules
 
 | Field | Type | Rules |
 |---|---|---|
-| `node_type` | enum | `branch` (composite — satisfied by children) / `leaf` (executable — satisfied by sprint) |
-| `confidence` | enum | `high` (clear evidence) / `medium` (reasonable inference) / `low` (best guess, may need human override) |
-| `reasoning` | string | 2-3 sentences. What was found and why this classification. |
-| `proposed_children` | list | 2-5 items. Branch only. Each item is a verifiable predicate string. Empty or omitted for leaf nodes. |
-| `prd_seed` | string | One sentence. Leaf only. Scopes exactly what the PRD must cover. Empty or omitted for branch nodes. |
+| `response` | enum | `new_child` (propose 1 child) / `complete` (no more children needed) / `leaf` (directly satisfiable) / `unachievable` (cannot be satisfied) |
+| `confidence` | enum | `high` / `medium` / `low` (best guess, may need human override) |
+| `reasoning` | string | Thorough analysis. Most valuable part — considers existing children and their conclusions. |
+| `child_predicate` | string | `new_child` only. One verifiable predicate for the proposed child. |
+| `child_type` | enum | `new_child` only. `risk` (validate feasibility) / `acquisition` (learn from real world) / `scope` (execute known work). |
+| `prd_seed` | string | `leaf` only. One sentence scoping the PRD. For `action` leaves: what evidence the human should bring back. |
+| `leaf_type` | enum | `leaf` only. `patch` (trivial, 1-3 files) / `cycle` (full sprint) / `action` (human acts in real world, reports evidence). |
+| `incerteza` | enum | max(executabilidade, coerência, verificabilidade). See LAW.md anchors. |
+| `impacto` | enum | How much satisfying this moves the parent toward satisfied. |
+| `retorno` | enum | Value gained relative to effort required. |
 | `created` | date | YYYY-MM-DD |
 
-### Semantics
+### Response semantics
 
-- **branch** — the predicate is too large or composite for a single sprint. Children decompose it. Branch nodes never get `prd.md`, `plan.md`, or other sprint artifacts.
-- **leaf** — the predicate is sprint-sized. A PRD can be written from `prd_seed`, and `planning → delivery → review → ship` executes against it.
-- **confidence: low** — `/fractal:run` should present the classification to the human with extra emphasis on validation. The evaluator is uncertain.
+- **new_child** — the predicate needs decomposition. One child is proposed. The evaluator is called again after the child is resolved (or in dry run, after the child is mapped). Risk/acquisition children are proposed before scope children.
+- **complete** — all necessary children exist (or the predicate needs no children and is already a satisfiable branch). No more decomposition needed.
+- **leaf** — the predicate is directly satisfiable without children. `prd_seed` and `leaf_type` specify how.
+- **unachievable** — the predicate cannot be satisfied given current constraints. `/fractal:run` will propose pruning.
+- **confidence: low** — `/fractal:run` should present with extra emphasis on human validation.
 
 ### Parsing
 
 ```bash
-NODE_TYPE=$(grep "^node_type:" discovery.md | awk '{print $2}')
+RESPONSE=$(grep "^response:" discovery.md | awk '{print $2}')
 CONFIDENCE=$(grep "^confidence:" discovery.md | awk '{print $2}')
+CHILD_PREDICATE=$(grep "^child_predicate:" discovery.md | sed 's/^child_predicate: //' | tr -d '"')
 PRD_SEED=$(grep "^prd_seed:" discovery.md | sed 's/^prd_seed: //' | tr -d '"')
+LEAF_TYPE=$(grep "^leaf_type:" discovery.md | awk '{print $2}')
 ```
 
 ---
