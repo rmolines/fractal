@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Fractal — recursive project management for Claude Code. A plugin that decomposes goals into predicates and works on the riskiest unknown first. One operation, repeated at any scale.
 
-**Version:** 0.4.1 | **Plugin manifest:** `.claude-plugin/plugin.json`
+**Version:** 0.6.0 | **Plugin manifest:** `.claude-plugin/plugin.json`
 
 ## Commands
 
