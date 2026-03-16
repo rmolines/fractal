@@ -106,6 +106,51 @@ their children, not by a sprint. No `discovery.md` is written at init time. The 
 
 4. Confirm to user: "Arvore criada em .fractal/<slug>/."
 
+4b. Inject fractal tree context into CLAUDE.md:
+
+Check if the repo has a CLAUDE.md (at root or `.claude/CLAUDE.md`). If neither exists, create `CLAUDE.md` at root.
+
+Check if the file already contains `## Fractal tree` (idempotent guard). If it does, skip.
+
+If not present, append the following section to the CLAUDE.md:
+
+```markdown
+
+## Fractal tree
+
+This repo uses a fractal predicate tree in `.fractal/` for project management.
+Run `bash scripts/fractal-tree.sh` to see current state.
+For project context, read `conclusion.md` files from satisfied nodes.
+See `references/context-protocol.md` in the fractal plugin for the full navigation protocol.
+```
+
+4c. Create `.claude/rules/fractal-nav.md` in the target repo (idempotent — skip if file already exists):
+
+```bash
+if [ ! -f ".claude/rules/fractal-nav.md" ]; then
+  mkdir -p ".claude/rules"
+  # write fractal-nav.md
+fi
+```
+
+Content to write:
+
+```markdown
+---
+paths:
+  - ".fractal/**"
+---
+# Fractal tree navigation
+
+When reading files in .fractal/:
+- conclusion.md contains what was achieved (oriented toward parent predicate)
+- discovery.md contains classification (branch/leaf) and proposed children
+- predicate.md contains the verifiable condition and status
+- Read conclusions of satisfied siblings before proposing new children for a branch
+```
+
+This is a path-scoped rule — it loads only when the agent touches `.fractal/` files. Zero cost for sessions that don't interact with the tree.
+
 5. Check for standards.md:
 
 If no `.claude/standards.md` exists in the repo, use `AskUserQuestion` to offer:

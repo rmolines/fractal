@@ -541,6 +541,59 @@ status: satisfied
 Do NOT move or delete the node directory. Artifacts remain as execution record.
 The fractal primitive, when next invoked on the parent, will re-evaluate.
 
+### Write conclusion.md
+
+After marking satisfied, write `conclusion.md` to capture what was achieved. This is structural — not gated by `SHIP_DOCS`.
+
+```
+Agent(
+  description="write conclusion for <NODE_SLUG>",
+  model="sonnet",
+  prompt="Write conclusion.md for a satisfied fractal node.
+
+Node directory: $NODE_DIR
+
+Read these artifacts from the node (each only if it exists):
+- $NODE_DIR/predicate.md — the verifiable condition and notes
+- $NODE_DIR/prd.md — acceptance criteria and constraints
+- $NODE_DIR/results.md — what was built
+- $NODE_DIR/review.md — final evaluation
+
+Write $NODE_DIR/conclusion.md with this exact format:
+
+---
+predicate: '<copy from predicate.md frontmatter>'
+satisfied_date: <today YYYY-MM-DD>
+satisfied_by: ship
+---
+
+## What was achieved
+1-3 sentences. Not 'what code was written' but 'what changed in the world that makes this predicate true.' Orient toward the parent predicate.
+
+## Key decisions
+Decisions made during execution that constrain future work on sibling or parent predicates. If none, write 'None.'
+
+## Deferred
+Items explicitly out of scope that may need future predicates. If none, write 'None.'
+
+Rules:
+- satisfied_by is always 'ship'
+- What was achieved: 1-3 sentences, past tense, outcome-oriented
+- Do not describe implementation details — describe the capability or state that now exists
+- Keep total file under 20 lines"
+)
+```
+
+After the subagent completes, commit the satisfaction artifacts:
+
+```bash
+git add "$NODE_DIR/predicate.md" "$NODE_DIR/conclusion.md"
+git diff --cached --quiet || git commit -m "chore($NODE_SLUG): mark satisfied + write conclusion
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push origin "$MAIN_BRANCH"
+```
+
 ---
 
 ## Final report
@@ -563,6 +616,7 @@ The fractal primitive, when next invoked on the parent, will re-evaluate.
 **Cleanup:**
 - Worktree: <removed | not applicable>
 - Predicate: status set to satisfied in ${NODE_DIR}/predicate.md
+- Conclusion: written to ${NODE_DIR}/conclusion.md
 
 Cycle closed. Next: /fractal:run for the next node.
 ```

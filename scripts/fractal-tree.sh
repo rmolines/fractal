@@ -35,6 +35,24 @@ status_icon() {
   esac
 }
 
+get_conclusion_oneliner() {
+  local node_dir="$1"
+  local conclusion_file="$node_dir/conclusion.md"
+  [ -f "$conclusion_file" ] || return 0
+  local line
+  line=$(awk '
+    /^## What was achieved/ { found=1; next }
+    found && /^[[:space:]]*$/ { next }
+    found { print; exit }
+  ' "$conclusion_file")
+  [ -z "$line" ] && return 0
+  if [ "${#line}" -gt 57 ]; then
+    printf ' — "%.57s..."' "$line"
+  else
+    printf ' — "%s"' "$line"
+  fi
+}
+
 # ── node counters (global, reset per tree) ───────────────────────────────────
 COUNT_SATISFIED=0
 COUNT_PENDING=0
@@ -123,7 +141,11 @@ render_tree() {
       # First segment match: active node is INSIDE this child (sub-tree case handled below)
     fi
 
-    echo "${prefix}${connector}${child_name} ${icon}${active_marker}"
+    local conclusion_suffix=""
+    if [ "$status" = "satisfied" ]; then
+      conclusion_suffix="$(get_conclusion_oneliner "$child_dir")"
+    fi
+    echo "${prefix}${connector}${child_name} ${icon}${active_marker}${conclusion_suffix}"
 
     # Determine child prefix for recursion
     local child_prefix
@@ -184,7 +206,7 @@ render_one_tree() {
   local total=$(( COUNT_SATISFIED + COUNT_PENDING + COUNT_PRUNED ))
   echo ""
   echo "${total} nodes: ${COUNT_SATISFIED} satisfied, ${COUNT_PENDING} pending, ${COUNT_PRUNED} pruned"
-  echo "legend: ✓ satisfied  ✗ pruned  ○ pending  ◀ active"
+  echo "legend: ✓ satisfied  ✗ pruned  ○ pending  ◀ active  — \"...\" conclusion"
 }
 
 # ── main ─────────────────────────────────────────────────────────────────────
