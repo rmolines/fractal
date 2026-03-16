@@ -101,6 +101,7 @@ predicate. Which files exist tells the agent what happened and what to do next.
       prd.md                   # acceptance criteria
       plan.md                  # how to verify it
       results.md               # what happened
+      conclusion.md            # what was achieved (feeds parent re-evaluation)
     webhook-handler/
       predicate.md             # next piece
       discovery.md             # node_type: leaf
@@ -110,18 +111,63 @@ predicate. Which files exist tells the agent what happened and what to do next.
 
 No database. No JSON. `ls` shows the tree. `cat` shows where you are.
 
+When a node is satisfied, it writes a `conclusion.md` summarizing what was
+achieved. Parent nodes read their children's conclusions to decide if the branch
+is complete or needs more work. This is how context survives across sessions
+without loading every file.
+
+## What it actually does
+
+Beyond the core loop, fractal handles the mechanics that make recursive
+decomposition work in practice:
+
+**Risk-return election.** The evaluator scores each candidate by uncertainty
+reduction and implementation cost. `select-next-node.sh` picks the highest
+leverage option, prioritizing undiscovered and branch nodes over leaves so
+direction gets validated before effort is committed.
+
+**Session-scoped focus.** Each session discovers its own starting point by
+traversing the tree. No global pointer to fight over. When a node completes,
+the pointer resets so the next session can reassess from scratch.
+
+**Parallel sessions.** Session locks prevent two sessions from working the same
+node. If your node is locked, the traversal skips to a sibling or cousin.
+`bash scripts/session-lock.sh cleanup` clears stale locks.
+
+**Fast path.** `/fractal:patch` handles small changes without the full sprint
+cycle. Agentic gates decide complexity, resolve ambiguities, and check for
+conflicts automatically. Only the final validation is human.
+
+**Bottom-up capture.** `/fractal:propose` takes a raw idea or task and reframes
+it into a verifiable predicate, then places it in the tree. You don't need to
+think in predicates to add work.
+
+**Engineering standards.** `/fractal:init` generates `.claude/standards.md` from
+your codebase. Sprint skills consume it as structured input, and each delivery
+auto-updates the standards so they never drift from the code.
+
+**Preventive research.** Before acting on assumptions about APIs, library
+versions, or framework behavior, the agent runs a quick web search to validate
+currency. Catches stale knowledge before it becomes wasted work.
+
+**HTML viewer.** `bash scripts/view.sh` generates a standalone HTML dashboard
+with two tabs: the skill chain and the full predicate tree with status
+indicators. No dependencies.
+
 ## Skills
 
 The plugin installs a chain of skills into Claude Code:
 
 - `/fractal:init` — bootstrap. Extract an objective, create the tree, hand off to `/fractal:run`.
 - `/fractal:run` — idempotent state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge.
+- `/fractal:propose` — capture a raw idea, reframe it as a predicate, place it in the tree.
 - `/fractal:patch` — fast patch for small changes that don't need the full cycle.
 - `/fractal:planning` — transforms a predicate into an executable plan.
 - `/fractal:delivery` — orchestrates subagents to execute the plan.
 - `/fractal:review` — validates the implementation against the predicate.
 - `/fractal:ship` — PR, CI, deploy, cleanup.
 - `/fractal:doctor` — validates tree integrity and optionally fixes inconsistencies.
+- `/fractal:view` — open the HTML dashboard in your browser.
 
 ## Full spec
 
