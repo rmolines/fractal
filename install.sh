@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-INSTALL_DIR="${HOME}/git/fractal"
+INSTALL_DIR="${INSTALL_DIR:-${HOME}/git/fractal}"
 MARKETPLACE="${HOME}/.claude/marketplace.json"
 
-echo "Installing Fractal..."
+# Check prerequisites
+if [ ! -d "${HOME}/.claude" ]; then
+  echo "Error: ~/.claude/ not found. Install Claude Code first: https://claude.ai/code"
+  exit 1
+fi
+
+echo "Installing Fractal to $INSTALL_DIR..."
 
 # Clone or pull
 if [ -d "$INSTALL_DIR" ]; then
@@ -16,11 +22,14 @@ else
   git clone --quiet https://github.com/rmolines/fractal "$INSTALL_DIR"
 fi
 
+# Resolve path for marketplace (replace $HOME with ~)
+PLUGIN_PATH="${INSTALL_DIR/#$HOME/\~}"
+
 # Set up marketplace.json
 mkdir -p "$(dirname "$MARKETPLACE")"
 
 if [ ! -f "$MARKETPLACE" ]; then
-  echo '{"plugins":[{"path":"~/git/fractal"}]}' > "$MARKETPLACE"
+  echo "{\"plugins\":[{\"path\":\"$PLUGIN_PATH\"}]}" > "$MARKETPLACE"
   echo "Created $MARKETPLACE"
 elif grep -q "fractal" "$MARKETPLACE" 2>/dev/null; then
   echo "Already registered in $MARKETPLACE"
@@ -28,20 +37,20 @@ else
   # Add to existing plugins array
   if command -v python3 &>/dev/null; then
     python3 -c "
-import json, sys
+import json
 with open('$MARKETPLACE') as f:
     data = json.load(f)
-data.setdefault('plugins', []).append({'path': '~/git/fractal'})
+data.setdefault('plugins', []).append({'path': '$PLUGIN_PATH'})
 with open('$MARKETPLACE', 'w') as f:
     json.dump(data, f)
 "
   else
-    # Fallback: simple sed insert before last ]
-    sed -i.bak 's/\]$/,{"path":"~\/git\/fractal"}]/' "$MARKETPLACE"
-    rm -f "${MARKETPLACE}.bak"
+    echo "Error: python3 required to update marketplace.json. Add manually:"
+    echo "  {\"path\":\"$PLUGIN_PATH\"} to $MARKETPLACE"
+    exit 1
   fi
   echo "Added to $MARKETPLACE"
 fi
 
 echo ""
-echo "Done. Start a new Claude Code session and run /fractal."
+echo "Done. Start a new Claude Code session and run /fractal:run in any repo."

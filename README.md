@@ -17,15 +17,13 @@ It's a Claude Code plugin. Works on any project.
 
 ## How
 
-You give it a goal. The agent turns it into a verifiable predicate: not "implement
+You give it a goal. The agent turns it into a verifiable condition: not "implement
 billing" but "users can pay monthly per seat via Stripe." Then it breaks that down,
 one piece at a time, always picking the piece that reduces the most uncertainty.
 
 When a piece is done, the parent gets re-evaluated. Maybe it's satisfied. Maybe it
 needs another piece. Maybe the whole direction was wrong and it prunes the branch
-and tries something else. The tree of predicates that builds up in `.fractal/` is
-the plan, the progress log, and the session state. You don't maintain anything
-separately.
+and tries something else.
 
 ```
 $ /fractal:init add billing to the app
@@ -53,21 +51,53 @@ $ /fractal:run
 ```
 
 Session dies, you come back, run `/fractal:run` with no arguments. It reads the
-filesystem and knows where it left off.
+filesystem and knows where it left off. The tree of predicates in `.fractal/` is
+the plan, the progress log, and the session state — all at once.
+
+## Install
+
+Requires [Claude Code](https://claude.ai/code) with plugin support.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rmolines/fractal/master/install.sh | bash
+```
+
+Start a new session and run `/fractal:run` in any repo. Override the install path
+with `INSTALL_DIR=~/your/path` before the curl command.
 
 ## How is this different?
 
-Other tools ask you to break your project into tasks upfront. You write a PRD,
-it becomes a list, the agent follows the list. If a task turns out to be wrong,
-you edit the list manually.
+Other tools ask you to decompose upfront. You write a PRD, it becomes a task
+list, the agent follows the list. If a task turns out wrong, you fix the list.
 
-Fractal doesn't need a list. You state the goal, it picks the riskiest
-piece, works on it, then reassesses. If a path doesn't work out, it backs up
-and tries another. You never maintain a plan doc.
+Fractal doesn't need a list. You state the goal, it picks the riskiest piece,
+works on it, then reassesses. If a path doesn't work out, it backs up and tries
+another.
+
+**vs. [Task Master](https://github.com/eyaltoledano/claude-task-master) (~27k stars):**
+PRD becomes a flat task list. No re-evaluation after each task.
+
+**vs. [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD):**
+Specialized agents per phase (PM, Architect, Developer). Rich but rigid — six
+phases in fixed order.
+
+**vs. [CCPM](https://github.com/automazeio/ccpm):**
+GitHub Issues + worktrees. Sound state management but fixed hierarchy. Doesn't
+handle plan invalidation.
+
+**vs. native Claude Code Tasks:**
+Good for checklists. Not for goal decomposition.
+
+**What fractal does differently:**
+- Conditions, not tasks. "Users can authenticate with Google" vs. "implement auth."
+- One recursive primitive at every scale. No fixed hierarchy.
+- One child at a time. Re-evaluate the parent after each.
+- Pruning is a feature. Failed path → back up → try another.
+- The tree is the plan, the log, and the state. Nothing else to maintain.
 
 ## The operation
 
-One recursive function. Same operation at every scale.
+One recursive function. Same structure at every scale.
 
 ```
 fractal(predicate):
@@ -78,97 +108,81 @@ fractal(predicate):
   if branch                  → find riskiest child → human validates → recurse
 ```
 
-## Install
+## This is fractal's own tree
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/rmolines/fractal/master/install.sh | bash
-```
-
-Start a new session (quit and run `claude` again). Run `/fractal:run` in any repo.
-
-## The tree
-
-The `.fractal/` directory is where the agent keeps state. Each folder is a
-predicate. Which files exist tells the agent what happened and what to do next.
+The project manages itself with the same primitive it gives you.
 
 ```
-.fractal/
-  stripe-billing/
-    root.md                    # the goal + which node is active
-    seat-changes/
-      predicate.md             # "Stripe handles mid-cycle seat changes"
-      discovery.md             # node_type: leaf
-      prd.md                   # acceptance criteria
-      plan.md                  # how to verify it
-      results.md               # what happened
-      conclusion.md            # what was achieved (feeds parent re-evaluation)
-    webhook-handler/
-      predicate.md             # next piece
-      discovery.md             # node_type: leaf
-    pricing-page/
-      predicate.md             # not started yet
+.fractal ○  "developers using Claude Code discover fractal, understand the value..."
+├── validated-market-need ✓ — "Pain confirmed, no equivalent tool exists"
+├── mapped-user-journey ✓ — "8-step journey from discovery to retention"
+│   ├── added-session-example ✓ — "Concrete demo in README before install"
+│   └── clarified-skill-hierarchy ✓ — "Separated 'you use' from 'runs internally'"
+├── picks-riskiest-piece-first ○
+│   ├── defined-scoring-rubric ✓ — "Uncertainty × impact × return"
+│   ├── scores-persisted ✓ — "Recorded in each node's discovery file"
+│   └── auto-selection-by-score ○
+├── enforces-engineering-standards ✓ — "Auto-generates, consumes, and updates standards"
+├── resumes-where-you-left-off ✓ — "Each session discovers its own focus"
+├── runs-parallel-sessions-safely ✓ — "Locks force concurrent work onto sibling branches"
+├── recursive-skill-invocation ○
+│   ├── descend-into-children ✓ — "Self-invocation pattern validated"
+│   └── return-to-parent ✗
+├── captures-ideas-bottom-up ○
+│   └── reframes-raw-input ✓ — "/fractal:propose turns tasks into conditions"
+├── outsider-validation ○
+├── multi-channel-distribution ○
+├── competitive-positioning ✓ — "Compared against Task Master, BMAD, CCPM, ICM"
+├── validates-assumptions-first ✓ — "Web search before acting on stale knowledge"
+└── html-dashboard ✓ — "Standalone viewer, no dependencies"
+
+20 of 71 nodes · 34 satisfied · 36 pending · 1 pruned
 ```
 
-No database. No JSON. `ls` shows the tree. `cat` shows where you are.
+The pruned node (`return-to-parent`) was an approach that didn't work. The system
+recognized it, backed up, and tried something else. That's the point.
 
-When a node is satisfied, it writes a `conclusion.md` summarizing what was
-achieved. Parent nodes read their children's conclusions to decide if the branch
-is complete or needs more work. This is how context survives across sessions
-without loading every file.
+Each satisfied node writes a `conclusion.md` — what was achieved, key decisions,
+deferred items. Any future session reads conclusions instead of loading every
+file. The tree is its own documentation.
 
 ## What it actually does
 
-Beyond the core loop, fractal handles the mechanics that make recursive
-decomposition work in practice:
+**Risk-first ordering.** The evaluator scores each candidate by uncertainty,
+impact, and return. Highest uncertainty gets worked first — kill the unknown
+before optimizing value delivery.
 
-**Risk-return election.** The evaluator scores each candidate by uncertainty
-reduction and implementation cost. `select-next-node.sh` picks the highest
-leverage option, prioritizing undiscovered and branch nodes over leaves so
-direction gets validated before effort is committed.
-
-**Session-scoped focus.** Each session discovers its own starting point by
-traversing the tree. No global pointer to fight over. When a node completes,
-the pointer resets so the next session can reassess from scratch.
+**Session continuity.** Die mid-sprint, come back next week. `/fractal:run`
+reads the filesystem and picks up where you left off. No global pointer to fight
+over.
 
 **Parallel sessions.** Session locks prevent two sessions from working the same
-node. If your node is locked, the traversal skips to a sibling or cousin.
-`bash scripts/session-lock.sh cleanup` clears stale locks.
+node. Run multiple Claude Code sessions on the same project safely.
 
 **Fast path.** `/fractal:patch` handles small changes without the full sprint
-cycle. Agentic gates decide complexity, resolve ambiguities, and check for
-conflicts automatically. Only the final validation is human.
+cycle. Only the final validation is human.
 
-**Bottom-up capture.** `/fractal:propose` takes a raw idea or task and reframes
-it into a verifiable predicate, then places it in the tree. You don't need to
-think in predicates to add work.
+**Bottom-up capture.** `/fractal:propose` takes a raw idea, reframes it into a
+verifiable condition, and places it in the tree.
 
 **Engineering standards.** `/fractal:init` generates `.claude/standards.md` from
-your codebase. Sprint skills consume it as structured input, and each delivery
-auto-updates the standards so they never drift from the code.
-
-**Preventive research.** Before acting on assumptions about APIs, library
-versions, or framework behavior, the agent runs a quick web search to validate
-currency. Catches stale knowledge before it becomes wasted work.
-
-**HTML viewer.** `bash scripts/view.sh` generates a standalone HTML dashboard
-with two tabs: the skill chain and the full predicate tree with status
-indicators. No dependencies.
+your codebase. Each delivery auto-updates it so standards never drift.
 
 ## Skills
 
-The plugin installs a chain of skills into Claude Code:
-
-- `/fractal:init` — bootstrap. Extract an objective, create the tree, hand off to `/fractal:run`.
-- `/fractal:run` — idempotent state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge.
-- `/fractal:propose` — capture a raw idea, reframe it as a predicate, place it in the tree.
-- `/fractal:patch` — fast patch for small changes that don't need the full cycle.
-- `/fractal:planning` — transforms a predicate into an executable plan.
-- `/fractal:delivery` — orchestrates subagents to execute the plan.
-- `/fractal:review` — validates the implementation against the predicate.
-- `/fractal:ship` — PR, CI, deploy, cleanup.
-- `/fractal:doctor` — validates tree integrity and optionally fixes inconsistencies.
+**You use:**
+- `/fractal:init` — state an objective, create the tree.
+- `/fractal:run` — advance one step. Call repeatedly to converge on the goal.
+- `/fractal:propose` — capture a raw idea, reframe it, place it in the tree.
 - `/fractal:view` — open the HTML dashboard in your browser.
+
+**Runs internally:**
+- `/fractal:patch` — fast path for small changes.
+- `/fractal:planning` → `/fractal:delivery` → `/fractal:review` → `/fractal:ship` — the sprint cycle.
+- `/fractal:doctor` — tree integrity validation.
 
 ## Full spec
 
-[LAW.md](./LAW.md) for the full spec if you want the details.
+[LAW.md](./LAW.md) for the formal specification. [THEORY.md](./THEORY.md) for the
+theoretical grounding — how the primitive converges with HTN planning, reinforcement
+learning options, model predictive control, and four other fields.
