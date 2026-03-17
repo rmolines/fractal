@@ -297,8 +297,8 @@ Agent(
 
 Wait for the sprint agent to complete. Parse its result: `status`, `summary`, `conclusion`.
 
-- If `status: success` → the sprint completed and shipped. Present to human (header: "Validacao"):
-  "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nSprint concluída e shipped. <summary>.\n\nO predicado foi satisfeito? (sim / nao)"
+- If `status: success` → the sprint completed and shipped. Read the node's `prd.md` acceptance criteria and any `smoke`/`test` commands from `.claude/project.md`. Present to human (header: "Validacao"):
+  "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nSprint concluída e shipped. <summary>.\n\n**Como validar:**\n<concrete steps the human should take to verify — based on acceptance criteria from prd.md, smoke/test commands from project.md, or manual checks. Be specific: commands to run, URLs to open, behaviors to observe.>\n\nO predicado foi satisfeito? (sim / nao)"
   - **Yes** → write `status: satisfied` in `predicate.md`. → go to step 5 (ASCEND).
   - **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
 - If `status: review_rejected` → the review rejected twice. Present the rejection reasons to the human and ask for guidance.
@@ -306,7 +306,8 @@ Wait for the sprint agent to complete. Parse its result: `status`, `summary`, `c
 
 After action leaf execution completes (next `/fractal:run` invocation):
 - Check if human reported evidence.
-- Use `AskUserQuestion` (header: "Validacao"): "O predicado foi satisfeito?"
+- Read the node's `prd.md` acceptance criteria and any `smoke`/`test` commands from `.claude/project.md`. Generate concrete validation steps.
+- Use `AskUserQuestion` (header: "Validacao"): "📍 <breadcrumb>\n🎯 <predicate>\n\n**Como validar:**\n<concrete steps — commands to run, URLs to open, behaviors to observe>\n\nO predicado foi satisfeito?"
 - **Yes** → write `status: satisfied` in `predicate.md`. Write `conclusion.md`. → go to step 5 (ASCEND).
 - **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
 
@@ -352,16 +353,19 @@ Invoke `/fractal:run`. STOP.
 > **DRY RUN with pending children:** → go to step 5 (ASCEND). The pending children were already mapped by previous recursions; the parent is fully decomposed.
 
 **If all children are satisfied (or satisfied + pruned with at least 1 satisfied):**
-Read conclusions from satisfied children. Present to human (header: "Validacao"):
+Read conclusions from satisfied children. Read the **parent node's** `predicate.md` to understand what it requires. If the parent predicate implies testable behavior, derive concrete validation steps (commands to run, URLs to open, behaviors to observe). Present to human (header: "Validacao"):
 ```
 📍 <breadcrumb> | <state>
 🎯 <active_predicate>
 
-Todos os filhos resolvidos. O predicado pai foi satisfeito?
+Todos os filhos resolvidos.
 <child-name> ✅: <conclusion summary>
 <child-name> ✅: <conclusion summary>
 
-(sim / nao — descreva o que falta)
+**Como validar o predicado pai:**
+<concrete steps the human should take to verify the parent predicate is truly satisfied — integration checks, smoke tests, manual verification. Be specific.>
+
+O predicado pai foi satisfeito? (sim / nao — descreva o que falta)
 ```
 
 - **Yes** → write `status: satisfied` in `predicate.md`. Write `conclusion.md` (synthesized from children, `satisfied_by: synthesis`). → go to step 5 (ASCEND).
