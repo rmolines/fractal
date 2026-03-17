@@ -64,7 +64,7 @@ when something doesn't add up, and challenge scope or assumptions.
 
 ## Lock (pre-loaded)
 
-!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); ACTIVE=$(grep "^active_node:" .fractal/root.md 2>/dev/null | sed 's/^active_node: //' | tr -d '"'); [ -n "$FRACTAL_SCRIPTS" ] && [ -n "$ACTIVE" ] && [ "$ACTIVE" != "." ] && bash "$FRACTAL_SCRIPTS/session-lock.sh" check "$ACTIVE" 2>/dev/null || echo "locked: n/a"`
+!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); ACTIVE=$([ -n "$FRACTAL_SCRIPTS" ] && bash "$FRACTAL_SCRIPTS/fractal-state.sh" 2>/dev/null | grep "^active_node:" | sed 's/^active_node: //'); [ -n "$FRACTAL_SCRIPTS" ] && [ -n "$ACTIVE" ] && [ "$ACTIVE" != "." ] && bash "$FRACTAL_SCRIPTS/session-lock.sh" check "$ACTIVE" 2>/dev/null || echo "locked: n/a"`
 
 ## Scripts path (for runtime mutations)
 
@@ -138,14 +138,18 @@ Then route:
 
 > **DRY RUN:** Skip ownership check entirely. Treat as always owned. Route directly based on `active_status`.
 
-Another session may have set `active_node` in `root.md`. Use the **pre-loaded lock status** to verify ownership. No bash call needed for the check.
+The pre-loaded state's `active_node` is already session-aware: `fractal-state.sh` overrides `root.md` with the session lock for `$PPID` when one exists. So by the time we reach this check, `active_node` already reflects THIS session's node (if a lock exists for us).
+
+Use the **pre-loaded lock status** to verify ownership. No bash call needed for the check.
 
 Parse the pre-loaded Lock output:
 
-- `locked: true` AND `pid` ≠ `$PPID` → the node belongs to another live session. **Treat as session traversal** (go to "Session traversal" below).
 - `locked: true` AND `pid` = `$PPID` → this session owns it. Continue routing below.
-- `locked: false` → no lock exists. Claim it: `bash "<scripts_path>/session-lock.sh" create <active_node>` (use the pre-loaded Scripts path). Continue routing below.
+- `locked: false` → no lock exists for this node. Claim it: `bash "<scripts_path>/session-lock.sh" create <active_node>` (use the pre-loaded Scripts path). Continue routing below.
+- `locked: true` AND `pid` ≠ `$PPID` → this session does NOT own the node that root.md points to, and we have no session lock of our own. **Treat as session traversal** (go to "Session traversal" below).
 - `locked: n/a` → active_node is "." or no tree. Handled by other routes.
+
+NOTE: Because `fractal-state.sh` already overrides `active_node` from our session lock, the case where root.md points to another session's node but we have our own lock is handled automatically — the pre-loaded state will already show OUR node, not theirs.
 
 After ownership is confirmed, route:
 
@@ -167,7 +171,7 @@ Parse the output:
 - `selected_node: none` → Print "Nenhum nó pending encontrado." STOP.
 - Otherwise → extract `selected_node` and `selected_predicate`.
 
-> **DRY RUN:** Skip `AskUserQuestion`. Print "🏃 DRY RUN — focando em: <selected_predicate>". Skip session lock. Update `active_node` in `root.md` to `selected_node`. Invoke `/fractal:run`. STOP.
+> **DRY RUN:** Skip `AskUserQuestion`. Print "🏃 DRY RUN — focando em: <selected_predicate>". Skip session lock. Write `active_node` to `root.md` (dry run has no locks, so root.md is the only pointer). Invoke `/fractal:run`. STOP.
 
 Use `AskUserQuestion` (header: "Foco"):
 
@@ -180,8 +184,8 @@ Focar em: "<selected_predicate>" (<selected_node>)?
 Confirma? (sim / escolher outro)
 ```
 
-- **Confirmed** → create session lock for the selected node: `bash "<scripts_path>/session-lock.sh" create <selected_node>`. Then update `active_node` in `root.md` to `selected_node`. Invoke `/fractal:run`. STOP.
-- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Create session lock: `bash "<scripts_path>/session-lock.sh" create <chosen_node>`. Update `active_node` in `root.md` to the human's chosen path. Invoke `/fractal:run`. STOP.
+- **Confirmed** → create session lock for the selected node: `bash "<scripts_path>/session-lock.sh" create <selected_node>`. Do NOT update `active_node` in `root.md` — the session lock is the source of truth. `fractal-state.sh` will derive the correct `active_node` on next invocation. Invoke `/fractal:run`. STOP.
+- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Create session lock: `bash "<scripts_path>/session-lock.sh" create <chosen_node>`. Do NOT update `active_node` in `root.md`. Invoke `/fractal:run`. STOP.
 
 Note: `select-next-node.sh` automatically ignores stale locks (dead PIDs). No manual cleanup needed.
 
@@ -333,7 +337,7 @@ Aceita? (sim / nao — descreva alternativa)
    created: <YYYY-MM-DD>
    ---
    ```
-4. Update `active_node` in `root.md` to the new child path.
+4. Move session lock to the new child: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <active_node_rel>/<slug>`. Do NOT write `active_node` to `root.md` — the session lock is the source of truth. `fractal-state.sh` will derive the correct `active_node` on next invocation.
 5. Invoke `/fractal:run`. STOP.
 
 #### 4d. ROUTE: complete
@@ -342,7 +346,7 @@ The evaluator says no more children are needed.
 
 **If the node has pending children:**
 Select the next pending child (iterate child dirs, pick first with `status: pending`).
-Update `active_node` in `root.md` to that child.
+Move session lock to the pending child: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <pending_child_rel_path>`. Do NOT write `active_node` to `root.md` — the session lock is the source of truth.
 Invoke `/fractal:run`. STOP.
 
 > **DRY RUN with pending children:** → go to step 5 (ASCEND). The pending children were already mapped by previous recursions; the parent is fully decomposed.
@@ -382,7 +386,7 @@ Active node is satisfied, pruned, or fully mapped (dry run).
 - If `active_status: pruned` → "Predicado raiz podado. Execute /fractal:init para redefinir." STOP.
 - Dry run: "🏃 DRY RUN — arvore completa." STOP.
 
-**5b.** Remove session lock for the current node: `bash "<scripts_path>/session-lock.sh" remove <active_node>`.
+**5b.** Move session lock from current node to parent: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <parent_path>`. This ensures `fractal-state.sh` resolves the correct `active_node` for this session on the next `/fractal:run` invocation. (Skip the parent lock creation when ascending to root — parent_path is `"."` and root has no lock.)
 
 **5c.** Compute parent path (strip last path segment from `active_node`).
 If `active_node` has no `/` (depth 1), parent is `"."`.
@@ -395,7 +399,11 @@ This forces re-evaluation of the parent on the next `/fractal:run` invocation. T
 
 **NOTE:** Only delete the PARENT's discovery.md. The current node's discovery.md is preserved — it contains `leaf_type`, `reasoning`, and other data that remains useful.
 
-**5e.** Update `active_node` in `root.md` to `parent_path`.
+**5e.** Do NOT update `active_node` in `root.md`. The session lock (moved to the parent in 5b) is the source of truth. `fractal-state.sh` will derive the correct `active_node` from the session lock on next invocation.
+
+Exception: when ascending to root (`parent_path = "."`), no parent lock is created (5b skips it). The session is ending — `fractal-state.sh` will find no lock for this PPID and fall back to root.md's `active_node`, which remains at whatever value the last session traversal set (or `"."`). This is correct: the next `/fractal:run` will trigger a fresh session traversal.
+
+**`root.md`'s `active_node` is now a legacy fallback** — only meaningful for dry run mode (which has no locks). Normal sessions rely exclusively on session locks as the per-session pointer.
 
 Print: "Nó [satisfied|pruned]. Subindo para o pai."
 Invoke `/fractal:run`. STOP.
