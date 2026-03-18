@@ -1,19 +1,12 @@
 # Fractal
 
-Recursive project management for Claude Code.
+**Recursive project management for Claude Code. State a goal — it figures out what to do next.**
 
-You tell it what you want. It figures out how to get there.
+![version](https://img.shields.io/badge/version-0.9.0-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
-Most AI coding tools wait for instructions. You say "build this feature," they build
-it. You say "fix this bug," they fix it. The thinking is on you. You decide what to
-work on, in what order, and hope you're not wasting time on the wrong thing.
+[Install](#install) · [How it works](#how) · [Skills](#skills) · [Full spec](./LAW.md) · [Theory](./THEORY.md)
 
-Fractal works differently. You state an objective. The agent figures out what
-the biggest risk is, goes after that first, and keeps adjusting as it learns. It
-doesn't follow a plan. At each step it asks: "what could I figure out right now
-that would most change what we do next?"
-
-It's a Claude Code plugin. Works on any project.
+Fractal is a Claude Code plugin that decomposes goals into verifiable predicates and always works on the riskiest unknown first. You state an objective. The agent picks the piece with the most uncertainty, works on it, then reassesses. When a path fails, it backs up and tries another. Same operation at every scale. Works on any project.
 
 ## How
 
@@ -140,7 +133,7 @@ The project manages itself with the same primitive it gives you.
 ├── validates-assumptions-first ✓ — "Web search before acting on stale knowledge"
 └── html-dashboard ✓ — "Standalone viewer, no dependencies"
 
-20 of 71 nodes · 34 satisfied · 36 pending · 1 pruned
+88 nodes · 48 satisfied · 39 pending · 1 pruned
 ```
 
 The pruned node (`return-to-parent`) was an approach that didn't work. The system
@@ -169,6 +162,15 @@ cycle. Only the final validation is human.
 **Bottom-up capture.** `/fractal:propose` takes a raw idea, reframes it into a
 verifiable condition, and places it in the tree.
 
+**Objection trees.** `/fractal:init-objection` applies the same primitive in
+reverse — decomposes challenges instead of goals. "You can't do X" becomes the
+root, children are reasons it might be true, satisfaction means refutation.
+Durable refutation required: the capability must survive session reset.
+
+**Sprint agent.** The planning → delivery → review → ship cycle runs as a
+single subagent with no human gates. The review is the quality gate. You
+validate only the final result.
+
 **Engineering standards.** `/fractal:init` generates `.claude/standards.md` from
 your codebase. Each delivery auto-updates it so standards never drift.
 
@@ -177,6 +179,7 @@ your codebase. Each delivery auto-updates it so standards never drift.
 **You use:**
 - `/fractal:init` — state an objective, create the tree.
 - `/fractal:run` — advance one step. Call repeatedly to converge on the goal.
+- `/fractal:init-objection` — stress-test a plan. Decomposes challenges instead of goals.
 - `/fractal:propose` — capture a raw idea, reframe it, place it in the tree.
 - `/fractal:view` — open the HTML dashboard in your browser.
 

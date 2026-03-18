@@ -48,6 +48,12 @@ The operation is fractal — self-similar at any scale. Same structure, differen
 
 The tree grows lazy — one child at a time. After a child is satisfied, the parent is re-evaluated: maybe it's now satisfiable, maybe it needs another child. The re-evaluation decides.
 
+### The dual: objection trees
+
+The same primitive runs in reverse to decompose challenges instead of goals. The root is a doubt ("you can't do X"), children are reasons that doubt might be true, and satisfying a node means refuting the argument. Construction trees ask "what parts compose the goal?" — objection trees ask "why would this challenge be true?" Same recursion, inverted semantics.
+
+This means the primitive has two modes — construction and refutation — with identical mechanics.
+
 ### Predicate tree, not task tree
 
 **The agent does not define atomic steps — it defines atomic predicates.** The entire tree is a tree of predicates — satisfiable at branches (human judges composition), verifiable at leaves (world confirms). Actions emerge from predicates: "what do I need to do to make this predicate true?"
@@ -119,13 +125,71 @@ The Launchpad cycle survives as the execution engine in the base case. Fractal r
 
 Parallelism (multiple subagents) is an internal strategy of the cycle — it increases the capacity to satisfy larger predicates. From the tree's perspective, it is still one node, one predicate, one result.
 
+The full cycle now executes as a single Sonnet subagent (the sprint agent) with no human gates between steps. The review skill is the internal quality gate — if it rejects, the sprint agent loops back to the relevant step (max 2 retries). The human validates only the final result: was the predicate satisfied?
+
+---
+
+## Objection trees
+
+### Why inversion
+
+Jacobi's principle: "invert, always invert." Munger applied it to problem-solving: define success by identifying what prevents it. Klein's pre-mortem formalizes this: assume the project failed, then explain why.
+
+These are epistemically prior to planning. Before asking "how do I build X?", ask "why would X fail?" The failure modes discovered through inversion often surprise — they reveal assumptions that construction planning takes for granted.
+
+### Mechanics
+
+The objection tree uses the same recursive primitive with inverted semantics:
+
+| Aspect | Construction tree | Objection tree |
+|---|---|---|
+| Root | Goal to achieve | Challenge to stress-test |
+| Node framing | Verifiable condition | Agent-centric doubt ("you can't do X") |
+| Decomposition | "What parts compose the goal?" | "Why would this challenge be true?" |
+| Satisfaction | Goal achieved | Challenge refuted |
+| Pruning | Path doesn't work → try another | Challenge is correct → acknowledge it |
+
+Every node is an agent-centric doubt, not a world-state fact. "The agent can't build auth that works in production" — not "auth doesn't work in production." This framing matters: the tree decomposes the agent's limitations, not the world's state.
+
+The evaluator returns the same four responses: `new_child` (strongest reason the challenge stands), `complete` (every reason addressed), `leaf` (directly refutable by doing), `unachievable` (the challenge is correct — the agent genuinely can't).
+
+### Durable refutation
+
+The key constraint distinguishing objection trees from one-off experiments: a refutation counts only when the capability survives session reset.
+
+Two classes:
+- **Durable** — code merged, skill modified, gate added, standard documented. Start a fresh session, delete /tmp — the capability still exists.
+- **Ephemeral** — files in /tmp, one-time demo, a proof-of-concept that consumed itself. The agent did X once, but nothing encodes that it can do X again.
+
+Ephemeral refutations prove possibility, not capability. If a child's refutation is ephemeral, the evaluator proposes a new child: "the system doesn't encode the pattern demonstrated by <sibling>." That child's job: commit the capability so it survives.
+
+Exception: epistemic objections ("the agent doesn't know X") are satisfied when knowledge is captured in `conclusion.md` — the document is the encoding. The durability test applies to capability claims, not knowledge claims.
+
+### Child taxonomy
+
+Children are classified by what they challenge:
+- **Epistemic** — we don't know something critical
+- **Risk** — something might not work
+- **Scope** — work remaining that hasn't been addressed
+
+Priority: epistemic and risk before scope. Kill the unknown before executing. This mirrors the construction tree's risk-first ordering — uncertainty reduction is the organizing principle in both modes.
+
+### Theoretical connections
+
+The objection tree maps cleanly to four independent traditions:
+
+- **Popper's falsification** — the hypothesis "I can't do X" must fail every test. Satisfying all children means the hypothesis has been falsified exhaustively. The tree is a structured falsification attempt.
+- **Klein's pre-mortem** — assume failure, then construct the argument. The tree IS the argument, decomposed recursively until every branch is addressed.
+- **Jacobi/Munger inversion** — success defined by the absence of all identified failure modes. The tree enumerates failure modes; satisfying the tree eliminates them.
+- **Toulmin argumentation** — data → warrant → claim, with rebuttals as branches. Each node is a claim ("you can't do X"), children are warrants ("because Y"), and refutation is the rebuttal.
+
 ---
 
 ## Persistence
 
 The predicate tree is the persistent on-disk representation. Each node: predicate (condition — verifiable for leaves, satisfiable for branches), status (pending | satisfied | pruned), children.
 
-There is no separate "plan". The tree is the plan, the log, and the state. There is always exactly one active node — the predicate currently being worked on. A new session reads the tree, finds the active node, and continues. It is the complete state of the session.
+There is no separate "plan". The tree is the plan, the log, and the state. There is no persistent active node pointer — each session discovers its own focus via `select-next-node.sh`, which traverses the tree and picks the highest-priority pending node. Session locks prevent collisions: parallel sessions work different branches simultaneously. The filesystem is the complete state; the session lock is the only ephemeral element.
 
 Delegation changes the executor of the node, it does not create parallel nodes.
 
@@ -154,6 +218,7 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 | Theoretical CS (Y combinator) | Fixed-point | Predicate in the argument, not depth |
 | Category Theory (F-algebras) | Initial algebra | Same morphism at every level (catamorphism) |
 | Spatial structures (Quadtree) | Adaptive subdivision | Internal heterogeneity of the cell |
+| Argumentation theory (Toulmin) | Warrant + rebuttal | Objection tree = structured falsification |
 
 ### Related work
 
@@ -187,8 +252,20 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 | Cost | Optimization via conservative/aggressive dial + model delegation |
 | Persistence | Predicate tree on disk is the source of truth |
 
-## Current state
+## Current state (v0.9.0)
 
-The implementation is operational as a Claude Code plugin. The on-disk tree format lives in `.fractal/` with `root.md` and `predicate.md` per node. Nodes are classified as branch (composite) or leaf (executable) via a discovery phase that writes `discovery.md`. Leaf nodes get `prd.md` before sprint. `view.sh` generates an HTML dashboard for visualization. Model delegation is active: Opus orchestrates, Sonnet executes via subagents. Git integration uses worktrees for isolation with full commit/push/PR flow. Future direction: OpenServer as programmatic state machine management layer.
+Operational as a Claude Code plugin. Key capabilities:
 
-The skill chain: `/fractal:init` (bootstrap), `/fractal:run` (idempotent state machine with discovery), `/fractal:patch`, `/fractal:planning`, `/fractal:delivery`, `/fractal:review`, `/fractal:ship`, `/fractal:doctor` (tree validation).
+- **Construction and objection trees** — same primitive, dual framing. Construction decomposes goals; objection decomposes challenges. Both use the same recursive evaluate → classify → execute → re-evaluate loop.
+- **Durable refutation** — objection nodes are refuted only when the capability survives session reset. Ephemeral proofs disqualified.
+- **Multiple trees per repo** — scripts auto-discover; user selects when ambiguous.
+- **Sprint agent** — full planning → delivery → review → ship cycle runs as a single Sonnet subagent, no human gates. The review is the quality gate (max 2 retries).
+- **Session-per-pointer** — no persistent active node. Each session discovers its own focus via `select-next-node.sh`. Session locks enable true parallel sessions on different branches.
+- **Visual validation** — mandatory gate in delivery and review for UI deliverables. Render + screenshot + 6-criterion evaluation via browser automation.
+- **Progressive disclosure** — tree → conclusions → sprint artifacts. Each session reads `conclusion.md` from satisfied nodes instead of loading every file.
+- **OpenServer prototype** — programmatic tree management via MCP tools (CRUD, state transitions). Four of five sub-predicates satisfied.
+
+Skill chains:
+- Construction: `/fractal:init` → `/fractal:run` (loop) → patch or sprint internally
+- Objection: `/fractal:init-objection` → `/fractal:run-objection` (loop)
+- Utilities: `/fractal:propose`, `/fractal:view`, `/fractal:doctor`
