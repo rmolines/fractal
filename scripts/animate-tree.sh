@@ -434,37 +434,29 @@ function computeLayout() {
     }
   });
 
-  // Bottom-up: compute subtree width for each node
+  // Bottom-up: compute subtree width (memoized)
   const widthCache = {};
   function subtreeWidth(slug) {
     if (widthCache[slug] !== undefined) return widthCache[slug];
     const kids = childrenMap[slug] || [];
-    if (kids.length === 0) {
-      widthCache[slug] = CARD_W;
-      return CARD_W;
-    }
-    const totalKids = kids.reduce((sum, k) => sum + subtreeWidth(k), 0);
-    const w = Math.max(CARD_W, totalKids + NODE_GAP * (kids.length - 1));
+    const w = kids.length === 0
+      ? CARD_W
+      : Math.max(CARD_W, kids.reduce((s, k) => s + subtreeWidth(k), 0) + NODE_GAP * (kids.length - 1));
     widthCache[slug] = w;
     return w;
   }
-  allNodes.forEach(n => subtreeWidth(n.slug));
 
   // Top-down: assign X positions, centering each node over its subtree block
-  const depthMap = {};
-  allNodes.forEach(n => { depthMap[n.slug] = n.depth; });
-
+  const depthOf = Object.fromEntries(allNodes.map(n => [n.slug, n.depth]));
   function assignX(slug, blockLeft) {
-    const w = widthCache[slug];
+    const w = subtreeWidth(slug);
     const x = blockLeft + (w - CARD_W) / 2;
-    const depth = depthMap[slug];
-    const y = PADDING_TOP + depth * LEVEL_GAP;
+    const y = PADDING_TOP + depthOf[slug] * LEVEL_GAP;
     result[slug] = { x, y, cx: x + CARD_W / 2, cy: y + CARD_H / 2 };
-    const kids = childrenMap[slug] || [];
     let offset = 0;
-    kids.forEach(kid => {
+    (childrenMap[slug] || []).forEach(kid => {
       assignX(kid, blockLeft + offset);
-      offset += widthCache[kid] + NODE_GAP;
+      offset += subtreeWidth(kid) + NODE_GAP;
     });
   }
 
