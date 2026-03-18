@@ -1,0 +1,11 @@
+{
+  "name": "fractal",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "server": "bun run server.ts"
+  },
+  "dependencies": {
+    "openserver": "file:../openserver"
+  }
+}
