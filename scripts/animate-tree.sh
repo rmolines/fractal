@@ -65,7 +65,7 @@ fi
 
 FRACTAL_DIR="${FRACTAL_DIR%/}"
 
-# Auto-discover single tree if FRACTAL_DIR doesn't have root.md directly
+# Auto-discover tree if FRACTAL_DIR doesn't have root.md directly
 if [ ! -f "$FRACTAL_DIR/root.md" ]; then
   TREE_DIR=""
   TREE_COUNT=0
@@ -80,6 +80,12 @@ if [ ! -f "$FRACTAL_DIR/root.md" ]; then
   elif [ "$TREE_COUNT" -eq 0 ]; then
     echo "Error: no root.md found in $FRACTAL_DIR" >&2
     exit 1
+  else
+    echo "multiple_trees: true"
+    for d in "$FRACTAL_DIR"/*/; do
+      [ -f "${d}root.md" ] && echo "tree: $(basename "$d")"
+    done
+    exit 2
   fi
 fi
 

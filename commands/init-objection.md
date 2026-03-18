@@ -1,10 +1,10 @@
 ---
-description: "Bootstrap: extract objective, create fractal tree, then hand off to /fractal:run. Use to start a new project or redefine an existing objective."
-argument-hint: "objective in natural language, or empty to auto-detect"
+description: "Bootstrap (objection mode): extract a challenge/objection, create fractal tree, then hand off to /fractal:run-objection. Use to start a pre-mortem or to stress-test a plan."
+argument-hint: "challenge or objection in natural language, or empty to auto-detect"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Glob
 ---
 
-# /fractal:init
+# /fractal:init-objection
 
 ## Human gates
 
@@ -14,7 +14,7 @@ Every time this skill needs human input (confirmation, choice, correction), use 
 critically, researches deeply, and pushes back when something doesn't add up. Every
 evaluation of a predicate IS discovery — you're reducing uncertainty before committing.
 
-Input: $ARGUMENTS — an objective in natural language, or empty to auto-detect.
+Input: $ARGUMENTS — a challenge or objection in natural language, or empty to auto-detect.
 
 ---
 
@@ -25,14 +25,15 @@ Input: $ARGUMENTS — an objective in natural language, or empty to auto-detect.
 - Calibrate depth to signal:
   | Signal level | Mode | What you do |
   |---|---|---|
-  | Vague ("I have an idea") | **Extraction** | Socratic — ask for concrete examples, one at a time |
-  | Formed hypothesis ("I want to build X") | **Validation** | Propose your interpretation, ask for confirmation |
-  | Concrete data (scans, metrics, code) | **Synthesis** | Analyze what the data shows, ask what's missing |
+  | Vague ("não sei se vai funcionar") | **Extraction** | Socratic — ask for concrete examples of what could go wrong, one at a time |
+  | Formed hypothesis ("acho que X vai falhar por Y") | **Validation** | Propose your interpretation of the blocker, ask for confirmation |
+  | Concrete data (scans, metrics, code) | **Synthesis** | Analyze what the data shows about the risk, ask what's missing |
 
   **Never extract when you can synthesize.**
 
-- **Push back when something doesn't add up.** If the scope is too big, say so. If the
-  idea has a fatal flaw, name it.
+- **Push back when something doesn't add up.** If the objection is too vague to be falsifiable, say so. If the doubt has a trivial resolution, name it.
+
+- The guiding question is: **"what do you doubt I can do?"** — not "what do you want?". The root node IS the challenge itself — framed as an objection ("you can't do X", "this won't work because Y"). Nodes in the objection tree stay as challenges. The evaluate-objection agent decomposes by asking "why would this challenge be true?" and children are also challenges. Satisfaction means refuting the challenge.
 
 ---
 
@@ -48,40 +49,40 @@ If `.fractal/learnings.md` exists, read it to calibrate predicate proposals.
 
 ## Step 2: Route
 
-- **No `.fractal/` dir OR no trees inside + no $ARGUMENTS** → ask the user what they want to accomplish. Then go to Phase 0.
-- **No `.fractal/` dir OR no trees inside + $ARGUMENTS** → use $ARGUMENTS as objective. Go to Phase 0.
+- **No `.fractal/` dir OR no trees inside + no $ARGUMENTS** → ask the user what they doubt or challenge. Then go to Phase 0.
+- **No `.fractal/` dir OR no trees inside + $ARGUMENTS** → use $ARGUMENTS as the challenge/objection. Go to Phase 0.
 - **`.fractal/` has exactly 1 tree + no $ARGUMENTS** → show tree status (run `fractal-state.sh`), ask:
-  "Árvore existente: '<root_predicate>'. Quer continuar ou redefinir o objetivo?"
-  - Continue → invoke `/fractal:run`. STOP.
+  "Árvore existente: '<root_predicate>'. Quer continuar ou redefinir o desafio?"
+  - Continue → invoke `/fractal:run-objection`. STOP.
   - Redefine → go to Phase 0 (mutation path).
-- **`.fractal/` has exactly 1 tree + $ARGUMENTS** → treat as new/redefined objective. Go to Phase 0 (mutation path).
+- **`.fractal/` has exactly 1 tree + $ARGUMENTS** → treat as new/redefined challenge. Go to Phase 0 (mutation path).
 - **Multiple trees + no $ARGUMENTS** → list existing trees, ask:
   "Árvores existentes: <list>. Quer continuar em uma delas ou criar nova?"
-  - Continue → ask which tree, then invoke `/fractal:run <tree-name>`. STOP.
+  - Continue → ask which tree, then invoke `/fractal:run-objection <tree-name>`. STOP.
   - New → go to Phase 0 (new tree will coexist with existing ones).
 - **Multiple trees + $ARGUMENTS** → treat as new tree objective. Go to Phase 0.
 
-## Step 3: Phase 0 — Extract the objective
+## Step 3: Phase 0 — Extract the objection
 
-Read `references/phase0.md` for the full extraction protocol. Summary:
+Read `references/phase0-objection.md` for the full extraction protocol. Summary:
 
-1. **Crystallize the problem** — inversion, level separation, transfer test
-2. **Scope assessment** — is this one predicate or many?
-3. **Risk identification** — strategy, UX, technical, business, distribution, integration
-4. **Investigation cycles** (if needed): research, mockup, spike, interview, analysis
+1. **Pre-mortem** — assume the project failed; what killed it?
+2. **Inversion** — what would have to be true for this to definitely not work?
+3. **Blocker identification** — which blockers are strategic, technical, UX, business, distribution, or integration?
+4. **Investigation cycles** (if needed): research, spike, interview, analysis
 
 Calibrate depth:
-- New project with no code → deep extraction
-- Existing repo with clear feature → light extraction
-- Trivial change → skip Phase 0, go straight to tree creation
+- New doubt with no prior evidence → deep extraction
+- Existing repo with a named risk → light extraction
+- Trivial concern → skip Phase 0, go straight to tree creation
 
-The goal: a single, verifiable root predicate in the useful abstraction window.
+The goal: a single challenge in the useful abstraction window — a doubt specific enough to decompose, broad enough to survive implementation changes. The challenge stays as a challenge (not inverted into a positive predicate). "You can't create a UX that surprises me" — not "the UX surprises the user".
 
 ## Step 4: Tree creation
 
-After objective is confirmed by human:
+After the challenge/objection is confirmed by human:
 
-1. Derive tree slug from objective (kebab-case, max 30 chars)
+1. Derive tree slug from the objection (kebab-case, max 30 chars)
 2. Create the tree:
 
 ```bash
@@ -93,9 +94,10 @@ mkdir -p ".fractal/$SLUG"
 
 ```markdown
 ---
-predicate: "<confirmed objective>"
+predicate: "<confirmed challenge as objection — e.g. 'o agente não consegue fazer X'>"
 status: pending
 active_node: .
+mode: objection
 created: <YYYY-MM-DD>
 ---
 
@@ -106,7 +108,7 @@ Previous roots are recorded here when the objective mutates.
 
 **Note:** Root nodes are always branch nodes — they are satisfied by the composition of
 their children, not by a sprint. No `discovery.md` is written at init time. The first
-`/fractal:run` invocation will trigger discovery on the root or its first child.
+`/fractal:run-objection` invocation will trigger discovery on the root or its first child.
 
 4. Confirm to user: "Arvore criada em .fractal/<slug>/."
 
@@ -163,33 +165,33 @@ If no `.claude/standards.md` exists in the repo, use `AskUserQuestion` to offer:
 - If "Sim, gerar" → invoke `/standards:generate`. Continue after it completes.
 - If "Pular" → continue
 
-6. Invoke `/fractal:run`. STOP.
+6. Invoke `/fractal:run-objection`. STOP.
 
 ## Step 5: Mutation path (existing tree)
 
-When redefining an existing tree's objective:
+When redefining an existing tree's challenge:
 
 1. Read current `root.md`
 2. Append current root predicate to `# Root history` section with date
-3. Update `predicate` field with new objective
+3. Update `predicate` field with new challenge expressed as falsifiable condition
 4. Reset `active_node` to `.`
 5. Capture learning in `.fractal/learnings.md`:
    ```
    ## <date> — <tree-name>/root
    Proposed: <old predicate>
    Human preferred: <new predicate>
-   Insight: objective mutation — original scope was <reason>
+   Insight: desafio redefinido — escopo original era <reason>
    ```
-6. Confirm to user: "Objetivo redefinido."
-7. Invoke `/fractal:run`. STOP.
+6. Confirm to user: "Desafio redefinido."
+7. Invoke `/fractal:run-objection`. STOP.
 
 ---
 
 ## Rules
 
 - One question at a time. Never stack.
-- Push back on vague or unverifiable predicates.
+- Push back on vague or unfalsifiable objections.
 - Phase 0 depth calibrated to context.
 - Multiple trees allowed. Each tree is independent under `.fractal/`.
-- After tree creation or continue → always end with `/fractal:run`. STOP.
+- After tree creation or continue → always end with `/fractal:run-objection`. STOP.
 - Subagents use model: sonnet. Never opus.

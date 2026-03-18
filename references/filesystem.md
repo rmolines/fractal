@@ -1,16 +1,16 @@
 # Filesystem structure
 
-The tree IS the filesystem. Each repo has at most **one tree** under `.fractal/`.
-The tree is a named subdirectory containing `root.md`. Each subdirectory within the
+The tree IS the filesystem. Each repo may have **multiple trees** under `.fractal/`.
+Each tree is a named subdirectory containing `root.md`. Each subdirectory within a
 tree is a predicate node. Artifacts from the execution cycle live inside the node.
 
-**Single-tree constraint:** `/fractal:init` enforces one tree per repo. If a sub-predicate
-falls outside the scope of the root predicate, either redefine the root (objective mutation)
-or discard the sub-predicate. `/fractal:doctor` validates this constraint.
+**Multi-tree support:** `/fractal:init` can create additional trees. When a single tree
+exists, scripts auto-discover it. When multiple exist, the user selects which to work on
+(via argument or interactive prompt). `/fractal:doctor` validates each tree independently.
 
 ```
 .fractal/
-  ciclofaixas/                 # the single tree for this repo
+  ciclofaixas/                 # a tree for this repo (multiple allowed)
     root.md                    # root predicate + active node pointer
     dados-cet/                 # leaf node (child of root)
       predicate.md             # verifiable condition, status, notes

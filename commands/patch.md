@@ -470,7 +470,15 @@ When the user **approves** the patch result, persist a leaf node in the fractal 
 **Step 0 — Locate tree context:**
 
 ```bash
-TREE_DIR=$(ls -d "$FRACTAL_DIR"/*/ 2>/dev/null | head -1)
+TREES=()
+for d in "$FRACTAL_DIR"/*/; do [ -f "${d}root.md" ] && TREES+=("$d"); done
+if [ "${#TREES[@]}" -eq 1 ]; then
+  TREE_DIR="${TREES[0]}"
+elif [ "${#TREES[@]}" -gt 1 ]; then
+  echo "multiple_trees: true"
+  for t in "${TREES[@]}"; do echo "tree: $(basename "$t")"; done
+  # Ask user which tree to use via AskUserQuestion
+fi
 ROOT_MD="$TREE_DIR/root.md"
 ACTIVE_NODE=$(grep "^active_node:" "$ROOT_MD" | sed 's/^active_node: //' | tr -d '"')
 ```
