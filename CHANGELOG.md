@@ -1,5 +1,11 @@
 # Changelog
 
+## layout-hierarquico-quebrado — PR #11 — 2026-03-17
+**Type:** feat
+**Node:** layout-hierarquico-quebrado
+**Commit:** `cf21a4c`
+Replaced flat depth-based `computeLayout()` in `scripts/animate-tree.sh` with a proper Reingold-Tilford hierarchical layout. Bottom-up subtree width computation + top-down centering. Zero overlaps on the 78-node real tree.
+
 ## 0.6.2 — 2026-03-16
 Fix `view.sh` path resolution from plugin cache instead of relative CWD.
 
