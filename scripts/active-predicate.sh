@@ -3,7 +3,7 @@ set -euo pipefail
 
 # active-predicate.sh — reads the active node's predicate.md content
 # Usage: bash scripts/active-predicate.sh [tree-path]
-#   No argument: auto-discovers the single tree in .fractal/
+#   No argument: auto-discovers tree in .fractal/
 
 if [ -n "${1:-}" ]; then
   TREE="${1%/}"
@@ -12,21 +12,24 @@ if [ -n "${1:-}" ]; then
     TREE=".fractal/$TREE"
   fi
 else
-  # Auto-discover single tree
+  # Auto-discover tree
   # First: check if .fractal/root.md exists → tree root is .fractal itself
   if [ -f ".fractal/root.md" ]; then
     TREE=".fractal"
   else
-    TREE=""
+    FOUND=()
     for rootmd in .fractal/*/root.md; do
       [ -f "$rootmd" ] || continue
-      if [ -z "$TREE" ]; then
-        TREE="$(dirname "$rootmd")"
-      else
-        echo "ERROR: multiple trees in .fractal/ — run /fractal:doctor"
-        exit 0
-      fi
+      FOUND+=("$(dirname "$rootmd")")
     done
+    if [ "${#FOUND[@]}" -gt 1 ]; then
+      echo "multiple_trees: true"
+      for t in "${FOUND[@]}"; do
+        echo "tree: $(basename "$t")"
+      done
+      exit 2
+    fi
+    TREE="${FOUND[0]:-}"
     if [ -z "$TREE" ]; then
       echo "ERROR: no tree found in .fractal/"
       exit 0

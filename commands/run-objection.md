@@ -1,10 +1,10 @@
 ---
-description: "Idempotent fractal state machine. Evaluates the active predicate and advances one step. Call repeatedly to converge on the root predicate."
+description: "Idempotent objection state machine. Evaluates the active challenge and advances one step. Call repeatedly to converge on the root objection."
 argument-hint: "[tree-name] (optional — auto-discovers if single tree)"
 allowed-tools: Skill(fractal *), Agent, Bash, Read, Write, Edit, Glob, AskUserQuestion
 ---
 
-# /fractal:run
+# /fractal:run-objection
 
 ## Human gates
 
@@ -33,7 +33,7 @@ IMPORTANT: The header must be plain text. No markdown formatting (no **, ##, *, 
 - **Density.** Max 4 lines between header and question. Compress context, don't narrate it.
 - **Concrete options.** Avoid open-ended "o que fazer?" — provide labeled choices (e.g., "Confirma? (sim/nao)", numbered candidates, yes/no).
 
-You operate the recursive predicate primitive. Read `LAW.md` first — it is
+You operate the recursive objection primitive. Read `LAW.md` first — it is
 the complete specification. This skill is the operational state machine.
 
 **Be a sparring partner, not a form to fill out.** Think critically, push back
@@ -45,7 +45,7 @@ when something doesn't add up, and challenge scope or assumptions.
 
 - Before any question, state what you're trying to decide and why.
 - One question at a time. Never stack questions.
-- Push back on vague or unfalsifiable predicates.
+- Push back on vague or unfalsifiable challenges.
 - When uncertain: "I'm interpreting this as X — is that right?"
 
 ---
@@ -77,7 +77,7 @@ In all runtime bash calls below, `<scripts_path>` refers to this pre-loaded valu
 ## Statechart — the canonical spec
 
 ```
-GUARD → [error/no-tree: STOP | root satisfied: STOP | else: SHOW]
+GUARD → [error/no-tree: STOP | root refuted: STOP | else: SHOW]
 SHOW → EVALUATE
 EVALUATE → collect existing_children → spawn evaluator → write discovery.md → ROUTE
 ROUTE:
@@ -92,7 +92,7 @@ ASCEND → delete parent's discovery.md → set active=parent → self-invoke �
 ```
 
 Every transition persists to disk BEFORE acting. This guarantees idempotency:
-calling `/fractal:run` again from the same state produces the same behavior.
+calling `/fractal:run-objection` again from the same state produces the same behavior.
 
 ---
 
@@ -111,7 +111,7 @@ When `FRACTAL_DRY_RUN=1`, the state machine runs identically but with these over
 3. **No execution.** When ROUTE reaches `leaf`, leave the node as `pending` (do NOT execute patch/sprint). Go directly to ASCEND.
 4. **Conversational stance is off.** No push-back, no challenges — just evaluate and recurse.
 
-The recursion is the same: each transition ends with `invoke /fractal:run → STOP`. The tree builds itself through the normal recursive invocation chain.
+The recursion is the same: each transition ends with `invoke /fractal:run-objection → STOP`. The tree builds itself through the normal recursive invocation chain.
 
 **Purpose:** validate the fractal decomposition for any problem by building the full tree without executing anything. Analyze the resulting tree structure in `.fractal/`.
 
@@ -127,8 +127,8 @@ Read pre-loaded state, tree, and lock status. All are already in the prompt — 
 
 Then route:
 
-- `state: error` → STOP. Print "Nenhuma arvore encontrada. Execute /fractal:init."
-- `active_status: satisfied` AND `depth: 0` → Print "Predicado raiz satisfeito." STOP.
+- `state: error` → STOP. Print "Nenhuma arvore encontrada. Execute /fractal:init-objection."
+- `active_status: satisfied` AND `depth: 0` → Print "Desafio raiz refutado. Arvore completa." STOP.
 - `active_node: "."` AND `root_status` is NOT `satisfied` AND NOT `pruned`:
   - If `children_total > 0` AND `has_discovery: false` → **Root re-evaluation.** The root has children and its discovery.md was deleted by ASCEND. Treat root as the active node and go directly to step 2 (SHOW). No session traversal needed.
   - Otherwise → **Session traversal** (see below).
@@ -168,10 +168,10 @@ bash "<scripts_path>/select-next-node.sh"
 
 Parse the output:
 
-- `selected_node: none` → Print "Nenhum nó pending encontrado." STOP.
+- `selected_node: none` → Print "Nenhum no pending encontrado." STOP.
 - Otherwise → extract `selected_node` and `selected_predicate`.
 
-> **DRY RUN:** Skip `AskUserQuestion`. Print "🏃 DRY RUN — focando em: <selected_predicate>". Skip session lock. Write `active_node` to `root.md` (dry run has no locks, so root.md is the only pointer). Invoke `/fractal:run`. STOP.
+> **DRY RUN:** Skip `AskUserQuestion`. Print "🏃 DRY RUN — focando em: <selected_predicate>". Skip session lock. Write `active_node` to `root.md` (dry run has no locks, so root.md is the only pointer). Invoke `/fractal:run-objection`. STOP.
 
 Use `AskUserQuestion` (header: "Foco"):
 
@@ -184,8 +184,8 @@ Focar em: "<selected_predicate>" (<selected_node>)?
 Confirma? (sim / escolher outro)
 ```
 
-- **Confirmed** → create session lock for the selected node: `bash "<scripts_path>/session-lock.sh" create <selected_node>`. Do NOT update `active_node` in `root.md` — the session lock is the source of truth. `fractal-state.sh` will derive the correct `active_node` on next invocation. Invoke `/fractal:run`. STOP.
-- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Create session lock: `bash "<scripts_path>/session-lock.sh" create <chosen_node>`. Do NOT update `active_node` in `root.md`. Invoke `/fractal:run`. STOP.
+- **Confirmed** → create session lock for the selected node: `bash "<scripts_path>/session-lock.sh" create <selected_node>`. Do NOT update `active_node` in `root.md` — the session lock is the source of truth. `fractal-state.sh` will derive the correct `active_node` on next invocation. Invoke `/fractal:run-objection`. STOP.
+- **Rejected** → show the tree (run `fractal-tree.sh`) and ask the human which node they prefer. Create session lock: `bash "<scripts_path>/session-lock.sh" create <chosen_node>`. Do NOT update `active_node` in `root.md`. Invoke `/fractal:run-objection`. STOP.
 
 Note: `select-next-node.sh` automatically ignores stale locks (dead PIDs). No manual cleanup needed.
 
@@ -228,16 +228,30 @@ If no children exist, `existing_children` is empty.
 
 ```
 Agent(
-  description: "evaluate: <predicate slug>",
-  subagent_type: "fractal:evaluate",
-  model: "sonnet",
+  description: "evaluate-objection: <predicate slug>",
+  subagent_type: "fractal:evaluate-objection",
   prompt: "predicate: <active_predicate>\ntree_path: <tree_path>\nrepo_root: <git root>\nexisting_children:\n<formatted list>"
 )
 ```
 
-Wait for response. Parse: `response`, `confidence`, `reasoning`, `child_predicate`, `child_type`, `prd_seed`, `leaf_type`.
+Note: do NOT set `model` here — the `evaluate-objection` agent defines `model: opus` in its frontmatter, which is the correct tier for this highest-leverage decision point.
 
-**Persist discovery.md** with the evaluator's response BEFORE routing.
+Wait for response. Parse: `response`, `confidence`, `reasoning`, `child_predicate`, `child_type`, `prd_seed`, `leaf_type`, `verification`.
+
+**Persist discovery.md** with the evaluator's response BEFORE routing. Include the `verification` field:
+
+```markdown
+---
+response: <response>
+confidence: <confidence>
+reasoning: <reasoning>
+child_predicate: <child_predicate>
+child_type: <child_type>
+prd_seed: <prd_seed>
+leaf_type: <leaf_type>
+verification: <verification>
+---
+```
 
 → go to step 4 (ROUTE).
 
@@ -250,23 +264,42 @@ Based on the evaluator's `response` field:
 #### 4a. ROUTE: unachievable → PRUNE
 
 Present to human (header: "Poda"):
-"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nO predicado parece inatingivel: <reasoning>. Podar este no?"
+"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nO desafio é legítimo — o agente realmente não consegue: <reasoning>. Podar este no?"
 → Confirmed → set `status: pruned` in active node's `predicate.md`. → go to step 5 (ASCEND).
 → Denied → re-evaluate with human's additional context.
 
 #### 4b. ROUTE: leaf → SPECIFY → EXECUTE
 
+Read `verification` from the persisted `discovery.md`.
+
+If `verification: subjective`:
 Present to human (header: "Execucao"):
-"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nPredicado diretamente satisfazivel. <leaf_type>: '<prd_seed>'. <reasoning>. Aceita?"
+"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nDesafio diretamente refutável. <leaf_type>: '<prd_seed>'. <reasoning>.\n\nEste desafio só pode ser refutado com seu julgamento. Vou implementar e mostrar. Aceita?"
+
+If `verification: objective`:
+Present to human (header: "Execucao"):
+"📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nDesafio diretamente refutável. <leaf_type>: '<prd_seed>'. <reasoning>. Aceita?"
+
 → Confirmed → proceed to execution below.
 → Rejected → ask what human prefers.
 
 > **DRY RUN:** Leave node as `pending`. Do NOT execute. Print "🏃 DRY RUN — leaf mapeada: <predicate>". → go to step 5 (ASCEND).
 
 **SPECIFY:** If no `prd.md` exists, write it:
+- Include `verification: objective | subjective` in the prd.md frontmatter.
 - For `leaf_type: action` → write prd.md with evidence criteria (what human should bring back).
 - For `leaf_type: patch | cycle` → write prd.md with acceptance criteria, out-of-scope, constraints.
 - Human validates prd.md before execution.
+
+Example prd.md frontmatter:
+```markdown
+---
+predicate: "<challenge text>"
+leaf_type: patch | cycle | action
+verification: objective | subjective
+created: <YYYY-MM-DD>
+---
+```
 
 **EXECUTE:**
 
@@ -282,7 +315,7 @@ created: <YYYY-MM-DD>
 ```
 
 Then:
-- **action** → present what the human needs to do. STOP. Human reports evidence on next `/fractal:run`.
+- **action** → present what the human needs to do. STOP. Human reports evidence on next `/fractal:run-objection`.
 - **patch** → invoke `/fractal:patch <predicate text>`. STOP.
 - **sprint** → spawn the sprint agent to run the full cycle (planning → delivery → review → ship) without human gates:
 
@@ -297,19 +330,21 @@ Agent(
 
 Wait for the sprint agent to complete. Parse its result: `status`, `summary`, `conclusion`.
 
-- If `status: success` → the sprint completed and shipped. Read the node's `prd.md` acceptance criteria and any `smoke`/`test` commands from `.claude/project.md`. Present to human (header: "Validacao"):
-  "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nSprint concluída e shipped. <summary>.\n\n**Como validar:**\n<concrete steps the human should take to verify — based on acceptance criteria from prd.md, smoke/test commands from project.md, or manual checks. Be specific: commands to run, URLs to open, behaviors to observe.>\n\nO predicado foi satisfeito? (sim / nao)"
+- If `status: success` → the sprint completed and shipped. Then check `verification`:
+  - If `verification: subjective` → human validation is MANDATORY. The agent does NOT attempt self-assessment. Present to human (header: "Validacao"):
+    "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nImplementei. O desafio foi refutado?"
+  - If `verification: objective` → present to human (header: "Validacao"):
+    "📍 <breadcrumb> | <state>\n🎯 <active_predicate>\n\nSprint concluída e shipped. <summary>.\n\nO desafio foi refutado? (sim / nao)"
   - **Yes** → write `status: satisfied` in `predicate.md`. → go to step 5 (ASCEND).
-  - **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
+  - **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run-objection`. STOP.
 - If `status: review_rejected` → the review rejected twice. Present the rejection reasons to the human and ask for guidance.
 - If `status: failed` → report the error. STOP.
 
-After action leaf execution completes (next `/fractal:run` invocation):
+After action leaf execution completes (next `/fractal:run-objection` invocation):
 - Check if human reported evidence.
-- Read the node's `prd.md` acceptance criteria and any `smoke`/`test` commands from `.claude/project.md`. Generate concrete validation steps.
-- Use `AskUserQuestion` (header: "Validacao"): "📍 <breadcrumb>\n🎯 <predicate>\n\n**Como validar:**\n<concrete steps — commands to run, URLs to open, behaviors to observe>\n\nO predicado foi satisfeito?"
+- Use `AskUserQuestion` (header: "Validacao"): "O desafio foi refutado?"
 - **Yes** → write `status: satisfied` in `predicate.md`. Write `conclusion.md`. → go to step 5 (ASCEND).
-- **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run`. STOP.
+- **No** → capture learning in `.fractal/learnings.md`. Invoke `/fractal:run-objection`. STOP.
 
 #### 4c. ROUTE: new_child → CREATE CHILD
 
@@ -318,7 +353,7 @@ Present to human (header: "Decomposicao"):
 📍 <breadcrumb> | <state>
 🎯 <active_predicate>
 
-Novo sub-predicado proposto: "<child_predicate>" [<child_type>]
+Motivo mais provável pelo qual o desafio se sustenta: "<child_predicate>" [<child_type>]
 Razao: <reasoning summary>
 
 Aceita? (sim / nao — descreva alternativa)
@@ -339,7 +374,7 @@ Aceita? (sim / nao — descreva alternativa)
    ---
    ```
 4. Move session lock to the new child: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <active_node_rel>/<slug>`. Do NOT write `active_node` to `root.md` — the session lock is the source of truth. `fractal-state.sh` will derive the correct `active_node` on next invocation.
-5. Invoke `/fractal:run`. STOP.
+5. Invoke `/fractal:run-objection`. STOP.
 
 #### 4d. ROUTE: complete
 
@@ -348,36 +383,33 @@ The evaluator says no more children are needed.
 **If the node has pending children:**
 Select the next pending child (iterate child dirs, pick first with `status: pending`).
 Move session lock to the pending child: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <pending_child_rel_path>`. Do NOT write `active_node` to `root.md` — the session lock is the source of truth.
-Invoke `/fractal:run`. STOP.
+Invoke `/fractal:run-objection`. STOP.
 
 > **DRY RUN with pending children:** → go to step 5 (ASCEND). The pending children were already mapped by previous recursions; the parent is fully decomposed.
 
 **If all children are satisfied (or satisfied + pruned with at least 1 satisfied):**
-Read conclusions from satisfied children. Read the **parent node's** `predicate.md` to understand what it requires. If the parent predicate implies testable behavior, derive concrete validation steps (commands to run, URLs to open, behaviors to observe). Present to human (header: "Validacao"):
+Read conclusions from satisfied children. Present to human (header: "Validacao"):
 ```
 📍 <breadcrumb> | <state>
 🎯 <active_predicate>
 
-Todos os filhos resolvidos.
+Todas as objeções foram endereçadas. O desafio foi refutado?
 <child-name> ✅: <conclusion summary>
 <child-name> ✅: <conclusion summary>
 
-**Como validar o predicado pai:**
-<concrete steps the human should take to verify the parent predicate is truly satisfied — integration checks, smoke tests, manual verification. Be specific.>
-
-O predicado pai foi satisfeito? (sim / nao — descreva o que falta)
+(sim / nao — descreva o que falta)
 ```
 
 - **Yes** → write `status: satisfied` in `predicate.md`. Write `conclusion.md` (synthesized from children, `satisfied_by: synthesis`). → go to step 5 (ASCEND).
-- **No** → capture learning in `learnings.md`. Delete `discovery.md` (force re-evaluation to propose new child). Invoke `/fractal:run`. STOP.
+- **No** → capture learning in `learnings.md`. Delete `discovery.md` (force re-evaluation to propose new child). Invoke `/fractal:run-objection`. STOP.
 
 **If all children are pruned:**
-The predicate may be unachievable. Present to human: "Todos os filhos podados. Podar o pai também?"
+The challenge may be legitimate after all. Present to human: "Todos os filhos podados. Podar o desafio pai também?"
 - Yes → set `status: pruned`. → ASCEND.
-- No → delete `discovery.md`. Invoke `/fractal:run`. STOP. (Evaluator will propose new approach.)
+- No → delete `discovery.md`. Invoke `/fractal:run-objection`. STOP. (Evaluator will propose new approach.)
 
 **If node has no children (complete without children):**
-This is equivalent to `response: leaf` — the evaluator is saying the predicate is satisfiable as-is. Treat as 4b (leaf). This should be rare; if it happens, log it as unusual.
+This is equivalent to `response: leaf` — the evaluator is saying the challenge is directly refutable as-is. Treat as 4b (leaf). This should be rare; if it happens, log it as unusual.
 
 ### 5. ASCEND
 
@@ -386,11 +418,11 @@ Active node is satisfied, pruned, or fully mapped (dry run).
 > **DRY RUN:** Skip all lock operations. Skip human questions. Auto-proceed.
 
 **5a.** If `depth: 0` (root node):
-- If `active_status: satisfied` → "Predicado raiz satisfeito. Arvore completa." STOP.
-- If `active_status: pruned` → "Predicado raiz podado. Execute /fractal:init para redefinir." STOP.
+- If `active_status: satisfied` → "Desafio raiz refutado. Arvore completa." STOP.
+- If `active_status: pruned` → "Desafio raiz podado. Execute /fractal:init-objection para redefinir." STOP.
 - Dry run: "🏃 DRY RUN — arvore completa." STOP.
 
-**5b.** Move session lock from current node to parent: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <parent_path>`. This ensures `fractal-state.sh` resolves the correct `active_node` for this session on the next `/fractal:run` invocation. (Skip the parent lock creation when ascending to root — parent_path is `"."` and root has no lock.)
+**5b.** Move session lock from current node to parent: `bash "<scripts_path>/session-lock.sh" remove <active_node>` then `bash "<scripts_path>/session-lock.sh" create <parent_path>`. This ensures `fractal-state.sh` resolves the correct `active_node` for this session on the next `/fractal:run-objection` invocation. (Skip the parent lock creation when ascending to root — parent_path is `"."` and root has no lock.)
 
 **5c.** Compute parent path (strip last path segment from `active_node`).
 If `active_node` has no `/` (depth 1), parent is `"."`.
@@ -399,30 +431,30 @@ If `active_node` has no `/` (depth 1), parent is `"."`.
 ```bash
 rm -f "<tree_path>/<parent_rel>/discovery.md"
 ```
-This forces re-evaluation of the parent on the next `/fractal:run` invocation. The evaluator will see the newly satisfied/pruned child and decide: propose another child, or declare complete.
+This forces re-evaluation of the parent on the next `/fractal:run-objection` invocation. The evaluator will see the newly satisfied/pruned child and decide: propose another child, or declare complete.
 
-**NOTE:** Only delete the PARENT's discovery.md. The current node's discovery.md is preserved — it contains `leaf_type`, `reasoning`, and other data that remains useful.
+**NOTE:** Only delete the PARENT's discovery.md. The current node's discovery.md is preserved — it contains `leaf_type`, `verification`, `reasoning`, and other data that remains useful.
 
 **5e.** Do NOT update `active_node` in `root.md`. The session lock (moved to the parent in 5b) is the source of truth. `fractal-state.sh` will derive the correct `active_node` from the session lock on next invocation.
 
-Exception: when ascending to root (`parent_path = "."`), no parent lock is created (5b skips it). The session is ending — `fractal-state.sh` will find no lock for this PPID and fall back to root.md's `active_node`, which remains at whatever value the last session traversal set (or `"."`). This is correct: the next `/fractal:run` will trigger a fresh session traversal.
+Exception: when ascending to root (`parent_path = "."`), no parent lock is created (5b skips it). The session is ending — `fractal-state.sh` will find no lock for this PPID and fall back to root.md's `active_node`, which remains at whatever value the last session traversal set (or `"."`). This is correct: the next `/fractal:run-objection` will trigger a fresh session traversal.
 
 **`root.md`'s `active_node` is now a legacy fallback** — only meaningful for dry run mode (which has no locks). Normal sessions rely exclusively on session locks as the per-session pointer.
 
-Print: "Nó [satisfied|pruned]. Subindo para o pai."
-Invoke `/fractal:run`. STOP.
+Print: "No [satisfied|pruned]. Subindo para o pai."
+Invoke `/fractal:run-objection`. STOP.
 
 ---
 
 ## Objective mutation
 
-If the user decides the root objective has changed mid-execution:
+If the user decides the root challenge has changed mid-execution:
 
 1. Record current root predicate in `root.md` `# Root history` section with date
 2. Update `predicate` field with new objective
 3. Reset `active_node` to `.`
 4. Capture learning in `.fractal/learnings.md`
-5. Invoke `/fractal:run`. STOP.
+5. Invoke `/fractal:run-objection`. STOP.
 
 ---
 
@@ -431,7 +463,9 @@ If the user decides the root objective has changed mid-execution:
 When EXECUTE chooses patch mode, invoke `/fractal:patch`. When EXECUTE chooses sprint mode, the sprint agent (`agents/sprint.md`) runs the full cycle:
 `/fractal:planning` → `/fractal:delivery` → `/fractal:review` → `/fractal:ship`
 
-The sprint agent runs as a single subagent (Sonnet) with no human gates. The review is the internal quality gate — if it rejects, the sprint agent loops back (max 2 retries). Ship runs automatically on approval. The human validates the predicate after the sprint completes.
+The sprint agent runs as a single subagent (Sonnet) with no human gates. The review is the internal quality gate — if it rejects, the sprint agent loops back (max 2 retries). Ship runs automatically on approval. The human validates whether the challenge was refuted after the sprint completes.
+
+For `verification: subjective` leaves: the human validation gate is always mandatory after any sprint. The agent never self-assesses subjective satisfaction.
 
 ---
 
@@ -439,15 +473,16 @@ The sprint agent runs as a single subagent (Sonnet) with no human gates. The rev
 
 - **ONE question at a time.** Never stack questions.
 - **ALWAYS write to disk before acting.** No transition without persistence.
-- **After invoking `/fractal:run` or any Skill, STOP.** Each invocation handles one step.
+- **After invoking `/fractal:run-objection` or any Skill, STOP.** Each invocation handles one step.
 - **Push back.** Challenge scope, assumptions, predicate quality. (Suspended in dry run mode.)
 - **The filesystem is truth.** Always read before acting, always save after.
-- **HITL always.** Validate every proposed predicate. Validate every result. (Suspended in dry run mode.)
+- **HITL always.** Validate every proposed challenge. Validate every result. (Suspended in dry run mode.)
 - **Capture every invalidation.** When the human corrects the agent, write to `learnings.md`.
 - **Read learnings on SHOW.** Accumulated insights inform future proposals.
-- **Subagents use model: sonnet.** Never opus in a subagent.
+- **Evaluator uses opus.** Do NOT override model in the Agent call for evaluate-objection — the frontmatter specifies opus and it must run at that tier.
 - **Multiple trees allowed.** Auto-discovered when single tree. When multiple, asks user or uses argument.
-- **ALWAYS persist discovery.md before routing.**
-- **PRD is required for leaf nodes before execution.**
+- **ALWAYS persist discovery.md before routing.** Include `verification` field for leaf responses.
+- **PRD is required for leaf nodes before execution.** PRD frontmatter must include `verification`.
 - **ASCEND always goes to the parent.** Never use select-next-node in ASCEND. The parent is re-evaluated.
 - **Delete parent's discovery.md on ASCEND.** Forces re-evaluation with fresh context.
+- **Subjective leaves never self-assess.** If `verification: subjective`, always present to human after sprint.

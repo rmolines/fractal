@@ -31,8 +31,11 @@ else
     echo "Error: no fractal tree found in .fractal/" >&2
     exit 1
   else
-    echo "Error: multiple trees found in .fractal/ — run /fractal:doctor" >&2
-    exit 1
+    echo "multiple_trees: true"
+      for t in "${FOUND[@]}"; do
+        echo "tree: $(basename "$t")"
+      done
+      exit 2
   fi
 fi
 

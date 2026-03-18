@@ -14,7 +14,7 @@ Fractal — recursive project management for Claude Code. A plugin that decompos
 # Test the state machine
 bash scripts/fractal-state.sh
 
-# View tree state (auto-discovers single tree in .fractal/)
+# View tree state (auto-discovers tree in .fractal/)
 bash scripts/fractal-tree.sh
 
 # Read active predicate
@@ -83,7 +83,7 @@ When entering a branch, read conclusions of satisfied children before acting. Fu
 - `fractal-tree.sh` — ASCII tree renderer for the predicate hierarchy
 - `active-predicate.sh` — reads and prints the active predicate text
 
-All scripts auto-discover the single tree in `.fractal/` when called without arguments.
+All scripts auto-discover the tree in `.fractal/` when called without arguments. When multiple trees exist, scripts exit with code 2 and list available trees.
 
 ### Key design documents
 
@@ -97,7 +97,7 @@ All scripts auto-discover the single tree in `.fractal/` when called without arg
 
 ## Conventions
 
-- One tree per repo, one active node per tree — enforced by `/fractal:init` and `/fractal:doctor`
+- Multiple trees per repo allowed, one active node per tree — auto-discovered when single, user selects when multiple
 - **Session locks (`session.lock`) use `$PPID` — the PID of the invoking shell**, not the Claude process. Each `bash scripts/session-lock.sh` call spawns a short-lived shell; that shell's PID is freed immediately after the call returns. If the OS recycles the PID for an unrelated process, `pid_alive` returns `true` and the lock appears active forever. If `select-next-node.sh` reports `reason: all_pending_locked` but no parallel session is running, execute `bash scripts/session-lock.sh cleanup` from the repo root to clear stale locks. Locks are gitignored and invisible to `git status`.
 - Human validates at two moments: proposal (predicate makes sense) and result (predicate satisfied)
 - Every transition persists to disk BEFORE acting (idempotency guarantee)

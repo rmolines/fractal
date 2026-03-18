@@ -3,7 +3,7 @@ set -euo pipefail
 
 # list-insertion-points.sh — list valid insertion positions for a new predicate node
 # Usage: bash scripts/list-insertion-points.sh [tree-path]
-#   No argument: auto-discovers the single tree in .fractal/
+#   No argument: auto-discovers tree in .fractal/
 #
 # Output: one block per valid insertion point, blocks separated by blank line.
 # Fields: path, predicate, depth, children, status
@@ -31,8 +31,11 @@ if [ $# -lt 1 ]; then
       echo "Error: no fractal tree found in .fractal/" >&2
       exit 1
     else
-      echo "Error: multiple trees found in .fractal/ — run /fractal:doctor" >&2
-      exit 1
+      echo "multiple_trees: true"
+      for t in "${FOUND[@]}"; do
+        echo "tree: $(basename "$t")"
+      done
+      exit 2
     fi
   fi
 else

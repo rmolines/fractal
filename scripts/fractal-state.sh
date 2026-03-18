@@ -3,10 +3,10 @@ set -euo pipefail
 
 # fractal-state.sh — read fractal tree state from filesystem
 # Usage: bash scripts/fractal-state.sh [tree-path]
-#   No argument: auto-discovers the single tree in .fractal/
+#   No argument: auto-discovers tree in .fractal/
 
 if [ $# -lt 1 ]; then
-  # Auto-discover single tree in .fractal/
+  # Auto-discover tree in .fractal/
   if [ ! -d ".fractal" ]; then
     echo "state: error" >&2
     exit 1
@@ -25,8 +25,11 @@ if [ $# -lt 1 ]; then
       echo "state: error" >&2
       exit 1
     else
-      echo "Error: multiple trees found in .fractal/ — run /fractal:doctor" >&2
-      exit 1
+      echo "multiple_trees: true"
+      for t in "${FOUND[@]}"; do
+        echo "tree: $(basename "$t")"
+      done
+      exit 2
     fi
   fi
 else

@@ -1,6 +1,6 @@
 ---
 description: "Strategic review of the fractal tree — structural analysis, realignment suggestions, and predicate quality audit."
-argument-hint: "(none needed — auto-discovers single tree)"
+argument-hint: "[tree-name] (optional — auto-discovers if single tree)"
 allowed-tools: Agent, Bash, Read, Glob, Grep, AskUserQuestion
 ---
 
