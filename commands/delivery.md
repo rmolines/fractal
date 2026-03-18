@@ -420,20 +420,53 @@ If deliverables ran in worktree isolation:
    after resolution.
 4. If resolution is ambiguous: ask the user before proceeding
 
-### Browser smoke test (UI deliverables)
+### UI detection and visual validation
 
-After worktree merge and before committing, if the deliverable has a `human_test` that
-references a URL or UI element, use Chrome automation tools to do a quick sanity check:
+After each subagent completes and returns its structured result, check whether `files_changed`
+contains any `.html` file (path ends with `.html`). Set the **UI deliverable flag**:
+
+```
+ui_deliverable: true   — if any file in files_changed ends with .html
+ui_deliverable: false  — otherwise (non-UI deliverable, gate skipped entirely)
+```
+
+**URL-based fallback:** if `ui_deliverable: false` but the deliverable's `human_test` references
+a URL or UI element, use Chrome automation for a quick sanity check:
 
 ```
 mcp__claude-in-chrome__navigate → target URL
 mcp__claude-in-chrome__get_screenshot → visual check
 ```
 
-If the browser check reveals broken UI (missing elements, layout errors, blank page):
-treat it as a failed deliverable and retry. This catches critical regressions before
-committing. Detailed per-test browser validation happens later in the
-"Auto-validate test checklist" section after all deliverables complete.
+If `ui_deliverable: true`, proceed to the mandatory visual validation gate (next section).
+If `ui_deliverable: false` and no URL in human_test, skip directly to integration commit.
+
+### Mandatory visual validation gate (UI deliverables only)
+
+When `ui_deliverable: true` (triggered by HTML files in files_changed):
+
+1. Locate the HTML file path from files_changed.
+2. Open it in Chrome: `mcp__claude-in-chrome__navigate` → `file://<absolute-path-to-html>`
+3. Take a screenshot: `mcp__claude-in-chrome__get_screenshot`
+4. Evaluate against the 6 visual checkpoints from paper-design-protocol.md:
+   | Criterion  | Check |
+   |------------|-------|
+   | Spacing    | Uniform gaps, consistent visual rhythm |
+   | Typography | Readable sizes, clear hierarchy |
+   | Contrast   | Text legible, elements distinct |
+   | Alignment  | Vertical and horizontal axes respected |
+   | Clipping   | No content cut off or hidden |
+   | Repetition | Scale/weight/spacing variation — no monotony |
+5. If any criterion FAILS: treat the deliverable as `status: partial`, append the
+   failure details to the subagent result, and retry (up to max_retries).
+   Include the screenshot finding in the retry prompt:
+   `[VISUAL VALIDATION FAILED] Criterion: <X>. Observed: <what was seen>`
+   The HTML file must be re-rendered (navigate again) after the subagent fixes the issue —
+   do not rely on a cached screenshot.
+6. If Chrome tools are unavailable (tool error): log a warning and proceed.
+   Do NOT block delivery when tooling is absent.
+7. If all 6 criteria PASS: log "Visual validation passed — 6/6 criteria OK"
+   and proceed to integration commit.
 
 ### Integration commit
 
