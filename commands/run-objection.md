@@ -52,11 +52,11 @@ when something doesn't add up, and challenge scope or assumptions.
 
 ## State (pre-loaded)
 
-!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); [ -n "$FRACTAL_SCRIPTS" ] && bash "$FRACTAL_SCRIPTS/fractal-state.sh" 2>/dev/null || echo "state: error"`
+!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); [ -n "$FRACTAL_SCRIPTS" ] && { bash "$FRACTAL_SCRIPTS/fractal-state.sh" 2>/dev/null; rc=$?; [ $rc -eq 2 ] && echo "state: multiple_trees"; [ $rc -eq 1 ] && echo "state: error"; true; } || echo "state: error"`
 
 ## Predicate (pre-loaded)
 
-!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); [ -n "$FRACTAL_SCRIPTS" ] && bash "$FRACTAL_SCRIPTS/active-predicate.sh" 2>/dev/null || echo "predicate: error"`
+!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); [ -n "$FRACTAL_SCRIPTS" ] && { bash "$FRACTAL_SCRIPTS/active-predicate.sh" 2>/dev/null; rc=$?; [ $rc -eq 2 ] && echo "predicate: multiple_trees"; [ $rc -eq 1 ] && echo "predicate: error"; true; } || echo "predicate: error"`
 
 ## Tree (pre-loaded)
 
@@ -64,7 +64,7 @@ when something doesn't add up, and challenge scope or assumptions.
 
 ## Lock (pre-loaded)
 
-!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); ACTIVE=$([ -n "$FRACTAL_SCRIPTS" ] && bash "$FRACTAL_SCRIPTS/fractal-state.sh" 2>/dev/null | grep "^active_node:" | sed 's/^active_node: //'); [ -n "$FRACTAL_SCRIPTS" ] && [ -n "$ACTIVE" ] && [ "$ACTIVE" != "." ] && bash "$FRACTAL_SCRIPTS/session-lock.sh" check "$ACTIVE" 2>/dev/null || echo "locked: n/a"`
+!`cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && FRACTAL_SCRIPTS=$(ls -d ~/.claude/plugins/cache/fractal/fractal/*/scripts 2>/dev/null | tail -1); ACTIVE=$([ -n "$FRACTAL_SCRIPTS" ] && { bash "$FRACTAL_SCRIPTS/fractal-state.sh" 2>/dev/null; } | grep "^active_node:" | sed 's/^active_node: //'); [ -n "$FRACTAL_SCRIPTS" ] && [ -n "$ACTIVE" ] && [ "$ACTIVE" != "." ] && bash "$FRACTAL_SCRIPTS/session-lock.sh" check "$ACTIVE" 2>/dev/null || echo "locked: n/a"`
 
 ## Scripts path (for runtime mutations)
 
@@ -128,9 +128,10 @@ Read pre-loaded state, tree, and lock status. All are already in the prompt — 
 Then route:
 
 - `state: error` → STOP. Print "Nenhuma arvore encontrada. Execute /fractal:init-objection."
+- `state: multiple_trees` → Multiple trees detected. If $ARGUMENTS contains a tree name, re-run state loading with that argument: `bash "<scripts_path>/fractal-state.sh" <tree-name>`. Use the re-loaded state for all subsequent steps. If no argument provided, use `AskUserQuestion` to ask which tree to work with (list the trees from the pre-loaded output).
 - `active_status: satisfied` AND `depth: 0` → Print "Desafio raiz refutado. Arvore completa." STOP.
 - `active_node: "."` AND `root_status` is NOT `satisfied` AND NOT `pruned`:
-  - If `children_total > 0` AND `has_discovery: false` → **Root re-evaluation.** The root has children and its discovery.md was deleted by ASCEND. Treat root as the active node and go directly to step 2 (SHOW). No session traversal needed.
+  - If (`children_total > 0` AND `has_discovery: false`) OR `children_total = 0` → **Root evaluation.** The root needs evaluation — either it has children and discovery.md was deleted by ASCEND, or it's a fresh tree with no children yet. Treat root as the active node and go directly to step 2 (SHOW). No session traversal needed.
   - Otherwise → **Session traversal** (see below).
 - `active_node` is NOT `"."` → **check ownership first** (see below). This MUST happen before any other routing (including ASCEND for satisfied/pruned nodes).
 

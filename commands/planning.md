@@ -107,12 +107,17 @@ Tree: <tree-name>
 Root: "<root predicate>"
 
 Satisfied nodes:
-- <slug>: "<predicate>" → files: <comma-separated from results.md files_changed>
-- <slug>: "<predicate>" → files: <comma-separated from results.md files_changed>
+- <slug>: "<predicate>"
+  achieved: <1-2 sentences from conclusion.md "What was achieved">
+  capabilities: <new APIs, utilities, patterns, or files now available for reuse>
+  files: <comma-separated from results.md files_changed, or conclusion.md if no results.md>
+  deferred: <deferred items from conclusion.md, or "none">
 
 Pending siblings: <slugs of sibling nodes with status: pending>
 Active: <current node path>
 ```
+
+**Source priority:** Read `conclusion.md` as the primary source for each satisfied node (always exists). Use `results.md` as complement for file lists. Branch nodes satisfied by synthesis (`satisfied_by: synthesis`) have no `results.md` — only `conclusion.md`.
 
 If no satisfied nodes exist: omit the "Satisfied nodes" section entirely.
 If the tree has only the current node: show only Root and Active.
@@ -121,6 +126,16 @@ Use this context when:
 - Writing deliverable prompts (include relevant prior work as context for the subagent)
 - Assessing scope (avoid re-implementing what a satisfied node already delivered)
 - Identifying dependencies on prior deliveries (files that were created by earlier nodes)
+
+### Compounding constraint (MANDATORY)
+
+When writing deliverable prompts, you MUST:
+- Reference sibling capabilities that the deliverable should USE, not re-implement
+- Include relevant code paths/patterns from sibling files in the "Context" section of each prompt
+- If a sibling added an API, utility, or pattern that this deliverable could use, the prompt MUST say: "Use <X> from <path> (built by <sibling>)" — not leave it implicit
+- If no sibling capabilities are relevant to a deliverable, explicitly note in the prompt: "No sibling dependencies for this deliverable"
+
+The deliverable prompt is where compounding happens or dies. A prompt that doesn't mention what siblings built produces isolated work.
 
 Check for `review.md` in node dir for amendment mode (same logic below).
 

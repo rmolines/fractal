@@ -76,7 +76,17 @@ Calibrate depth:
 - Existing repo with a named risk → light extraction
 - Trivial concern → skip Phase 0, go straight to tree creation
 
-The goal: a single challenge in the useful abstraction window — a doubt specific enough to decompose, broad enough to survive implementation changes. The challenge stays as a challenge (not inverted into a positive predicate). "You can't create a UX that surprises me" — not "the UX surprises the user".
+The goal: a single challenge in the useful abstraction window — a doubt specific enough to decompose, broad enough to survive implementation changes.
+
+**CRITICAL — objection framing:** The root node MUST be an objection/challenge/doubt — a negative claim about what can't be done or won't work. NEVER invert it into a positive predicate.
+
+| ✅ Correct (agent-centric challenge) | ❌ Wrong (world-state fact) | ❌ Wrong (positive predicate) |
+|---|---|---|
+| "O agente não consegue criar uma UX que me surpreenda" | "A UX atual não surpreende" | "A UX surpreende o usuário" |
+| "O agente não consegue fazer isso escalar pra 1000 usuários" | "Isso não escala pra 1000 usuários" | "O sistema escala para 1000 usuários" |
+| "O agente não consegue entregar isso em 2 semanas" | "Não dá pra entregar em 2 semanas" | "A entrega acontece em 2 semanas" |
+
+If you catch yourself writing a positive statement or a world-state fact, reframe as an agent capability doubt. The tree decomposes by asking "why would this challenge be true?" — positive predicates and world-state facts break this logic.
 
 ## Step 4: Tree creation
 
@@ -94,7 +104,7 @@ mkdir -p ".fractal/$SLUG"
 
 ```markdown
 ---
-predicate: "<confirmed challenge as objection — e.g. 'o agente não consegue fazer X'>"
+predicate: "<MUST be an objection/challenge — e.g. 'o agente não consegue fazer X', 'isso não vai funcionar porque Y'. NEVER a positive predicate.>"
 status: pending
 active_node: .
 mode: objection

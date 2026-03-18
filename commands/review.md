@@ -244,6 +244,14 @@ Agent(
 >
 > If `UI_DELIVERABLE` is false: mark all Visual Validation rows as SKIPPED.
 >
+> **8. Compounding check**
+> Did this implementation leverage what sibling nodes already built?
+> - Read the PROJECT CONTEXT section from plan.md
+> - For each satisfied sibling that added relevant capabilities: did this implementation USE them?
+> - Flag as SMELL if: a sibling built capability X and this implementation re-implemented X or ignored X when it was clearly relevant
+> - Flag as GOOD if: the implementation explicitly builds on sibling work (imports, extends, reuses)
+> - This is informational, not blocking — a smell alone does not warrant back-to-delivery
+>
 > Output:
 > ### Human validation
 > | Test | Result | Covers |
@@ -300,6 +308,13 @@ Agent(
 > | Repetition | PASS/FAIL/SKIPPED | |
 >
 > visual_validation: passed | failed | skipped (N/6 criteria passed)
+>
+> ### Compounding
+> | Sibling | Capability | Used? | Note |
+> |---------|-----------|-------|------|
+> | <slug> | <capability> | YES/NO/N/A | <how used or why not> |
+>
+> compounding: good | smell | n/a (no relevant siblings)
 >
 > ### Evaluator recommendation
 > <your honest assessment: is this ready, needs work, or fundamentally misaligned?>
