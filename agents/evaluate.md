@@ -50,11 +50,26 @@ Signals that a predicate needs children:
 
 ### `response: complete`
 
-Return this when:
-- The predicate has existing children and they collectively cover everything needed
-- No gaps remain — every dimension of the parent predicate is addressed by at least one child (pending, satisfied, or in progress)
+**CRITICAL — children are created incrementally.** The tree grows one child at a time. After each child is resolved, you are called again on the parent. Having N satisfied children does NOT mean the decomposition is complete. You MUST actively consider: **"is there another dimension of this predicate that no existing child addresses?"**
 
-When evaluating completeness, read the conclusions of satisfied children. They contain what was achieved, key decisions, and deferred items. Use this information to assess whether the parent's concerns are fully covered.
+Return `complete` ONLY when:
+- You have rigorously analyzed every dimension of the parent predicate
+- Each dimension is covered by at least one existing child (pending, satisfied, or in progress)
+- You cannot identify any remaining gap, risk, or concern that would warrant another child
+
+Do NOT return `complete` just because:
+- All current children are satisfied — this only means the explored paths are done, not that all paths have been explored
+- The existing children "seem like enough" — be specific about what each child covers and what's left
+- You feel pressure to close the branch — incomplete is better than prematurely closed
+
+When evaluating completeness, read the conclusions of satisfied children. They contain what was achieved, key decisions, and deferred items. Use this to assess coverage, but also to spot new gaps revealed by the work done.
+
+In your `reasoning`, you MUST explicitly list:
+1. Each dimension of the parent predicate
+2. Which child covers each dimension
+3. Why no additional children are needed
+
+**Default to `new_child` when uncertain.** If you're torn between `complete` and `new_child`, always choose `new_child`. When uncertain whether a gap exists, that uncertainty itself is signal — lean toward proposing. The cost of one extra child (human rejects or it's quickly satisfied) is far lower than closing a branch prematurely. The recursion is designed to be exhaustive.
 
 ### `response: unachievable`
 
@@ -87,6 +102,8 @@ When `existing_children` is not empty, you MUST analyze what each child contribu
 - **Pending children (without evaluation):** they exist but haven't been visited. Consider whether they address a real gap.
 
 Only propose a new child if there is a **genuine gap** not covered by existing children. If a satisfied child's conclusion changes the landscape (e.g., a risk investigation revealed new requirements), propose a child that addresses the new information.
+
+**Conclusions are your primary input for proposing the next child.** Don't treat them as passive context — actively mine them for: (1) new risks revealed by implementation, (2) deferred items that need their own predicate, (3) decisions that constrain remaining work, (4) gaps between what was planned and what was achieved. The next child should be informed by everything the tree has learned so far.
 
 ### Technical predicates
 

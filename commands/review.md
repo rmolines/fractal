@@ -86,6 +86,16 @@ Read in parallel:
 
 Combine both diffs as the "total feature diff".
 
+### Detect UI deliverables
+
+```bash
+# Check if the diff contains HTML files
+HTML_FILES=$(git diff origin/main...HEAD --name-only | grep '\.html$')
+UI_DELIVERABLE=$([ -n "$HTML_FILES" ] && echo "true" || echo "false")
+```
+
+Report: `UI deliverable detected: true | false (files: <list or none>)`
+
 ### Context gate
 
 - Predicate + plan found → proceed
@@ -210,6 +220,38 @@ Agent(
 > - Are there predicate aspects NOT covered by any test?
 > - Are there untested items ([ ]) that are critical?
 >
+> **7. Visual validation (UI deliverables only)**
+> If `UI_DELIVERABLE` is true (HTML files detected in diff), run visual validation
+> before completing your evaluation:
+>
+> HTML files detected in diff: <list HTML_FILES>
+>
+> 1. Open each HTML file: `mcp__claude-in-chrome__navigate` → `file://<absolute path>`
+> 2. Screenshot: `mcp__claude-in-chrome__get_screenshot`
+> 3. Evaluate the 6 visual checkpoints:
+>    | Criterion  | Status | Note |
+>    |------------|--------|------|
+>    | Spacing    | PASS/FAIL | |
+>    | Typography | PASS/FAIL | |
+>    | Contrast   | PASS/FAIL | |
+>    | Alignment  | PASS/FAIL | |
+>    | Clipping   | PASS/FAIL | |
+>    | Repetition | PASS/FAIL | |
+> 4. Include this table in your evaluation output under "### Visual Validation"
+> 5. If any criterion FAILS: flag as risk in "### Risks and concerns"
+> 6. If Chrome tools unavailable: note "Visual validation skipped — Chrome unavailable"
+>    and proceed with text-only evaluation.
+>
+> If `UI_DELIVERABLE` is false: mark all Visual Validation rows as SKIPPED.
+>
+> **8. Compounding check**
+> Did this implementation leverage what sibling nodes already built?
+> - Read the PROJECT CONTEXT section from plan.md
+> - For each satisfied sibling that added relevant capabilities: did this implementation USE them?
+> - Flag as SMELL if: a sibling built capability X and this implementation re-implemented X or ignored X when it was clearly relevant
+> - Flag as GOOD if: the implementation explicitly builds on sibling work (imports, extends, reuses)
+> - This is informational, not blocking — a smell alone does not warrant back-to-delivery
+>
 > Output:
 > ### Human validation
 > | Test | Result | Covers |
@@ -255,6 +297,25 @@ Agent(
 >
 > human_coverage: N/M tests passed, <adequate | insufficient> coverage
 >
+> ### Visual Validation
+> | Criterion  | Status | Note |
+> |------------|--------|------|
+> | Spacing    | PASS/FAIL/SKIPPED | |
+> | Typography | PASS/FAIL/SKIPPED | |
+> | Contrast   | PASS/FAIL/SKIPPED | |
+> | Alignment  | PASS/FAIL/SKIPPED | |
+> | Clipping   | PASS/FAIL/SKIPPED | |
+> | Repetition | PASS/FAIL/SKIPPED | |
+>
+> visual_validation: passed | failed | skipped (N/6 criteria passed)
+>
+> ### Compounding
+> | Sibling | Capability | Used? | Note |
+> |---------|-----------|-------|------|
+> | <slug> | <capability> | YES/NO/N/A | <how used or why not> |
+>
+> compounding: good | smell | n/a (no relevant siblings)
+>
 > ### Evaluator recommendation
 > <your honest assessment: is this ready, needs work, or fundamentally misaligned?>
 > ```
@@ -289,6 +350,7 @@ Consider the evaluator's analysis and provide context in the verdict summary to 
 - No out-of-scope violations (those go back to planning)
 - The plan is sound — the work just isn't done
 - Human tests show failures on critical predicate aspects
+- Visual validation failed (any of the 6 criteria FAIL and the issue is fixable)
 
 **Back to planning** when:
 - Out-of-scope was violated (hard rule)

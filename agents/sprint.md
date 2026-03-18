@@ -34,6 +34,11 @@ Skill(skill: "fractal:delivery", args: "<node_dir>")
 
 This produces `results.md` in the node directory.
 
+> **UI deliverables:** if any deliverable produces `.html` files, delivery.md
+> will automatically run a mandatory visual validation gate (render + screenshot +
+> 6-criterion evaluation via claude-in-chrome) before committing. This is not optional.
+> If Chrome tools are unavailable, delivery logs a warning and continues.
+
 ### 3. Review
 
 ```
@@ -41,6 +46,10 @@ Skill(skill: "fractal:review", args: "<node_dir>")
 ```
 
 This produces `review.md` in the node directory.
+
+> **UI deliverables:** if the diff contains `.html` files, review.md will include
+> a visual validation table (6 criteria) in the evaluator output. Visual failures
+> count as risks and may trigger back-to-delivery.
 
 **If the review rejects** (verdict is `back-to-planning` or `back-to-delivery`):
 - Read `review.md` to understand the rejection reason

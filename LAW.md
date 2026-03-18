@@ -128,6 +128,14 @@ After ship marks `status: satisfied`, the ship step writes `conclusion.md` in th
 5. If yes → human validates/edits conclusion → `status: satisfied`
 6. If not → human says what's missing → generate new child
 
+### Objection satisfaction — durability requirement
+
+In objection mode, "satisfied" (refuted) means the capability is permanently encoded. The test: if every /tmp file were deleted and the session reset, would the agent still possess the capability?
+
+A one-time demonstration proves *possibility*. Refutation requires *encoding*: a committed skill, gate, standard, test, or documented conclusion that survives session reset.
+
+**Intrinsic exception:** Epistemic objections ("o agente não sabe X") are satisfied when the knowledge is captured as conclusion.md — the document IS the encoding. The durability test applies to capability claims, not one-time knowledge acts.
+
 ### Evaluate (Discovery)
 
 The mechanism that drives all branching and routing decisions in the primitive. An evaluate subagent receives a predicate, its existing children (with status and conclusions), and the full repo context. It returns exactly one of four responses:
@@ -161,7 +169,7 @@ All three modes are falsifiable — they differ in mechanism, not in rigor. A pr
 
 **Active node:** a session-scoped pointer to the predicate being worked on. Between sessions, `active_node` rests at `"."` (root). When `/fractal:run` is invoked and the pointer is at root, the system traverses the tree, identifies the highest-priority pending node, and presents it to the human for validation. Within a session, there is always exactly one active node per tree.
 
-**Tree:** the single predicate tree for a repository. Each repo has at most one tree under `.fractal/`. If a sub-predicate falls outside the scope of the root predicate, either redefine the root (objective mutation) or discard the sub-predicate. Tree creation and objective mutation are handled by `/fractal:init`.
+**Tree:** a predicate tree for a repository. Each repo may have multiple trees under `.fractal/`, each tracking an independent objective. If a sub-predicate falls outside the scope of the root predicate, either redefine the root (objective mutation), discard the sub-predicate, or create a separate tree. Tree creation and objective mutation are handled by `/fractal:init`.
 
 **Pruned:** a predicate the agent recognized as unachievable. Permanent at that node, but does not kill the parent — it forces re-evaluation and generation of another path.
 
@@ -181,8 +189,8 @@ There is no plan separate from the goal. The root goal is the first predicate. E
 ### 2. Reactive, not contractual
 There is no plan as contract. If the root goal changes, a new root node is created in the tree. The previous tree persists as history, but the recursion restarts from the new root. Nothing is lost, and the depth corrects itself.
 
-### 3. One tree per repo, one active node per tree
-Each repo has at most one predicate tree. Each tree has exactly one predicate being worked on. Delegation changes the executor of the node, it does not create parallel nodes. Parallelism is internal optimization of the execution cycle. Between sessions, the active node resets to root. Each new session discovers its own focus via tree traversal.
+### 3. One active node per tree, multiple trees allowed
+Each repo may have multiple predicate trees. Each tree has exactly one predicate being worked on. When multiple trees exist, the session selects which tree to operate on (via argument or interactive selection). Delegation changes the executor of the node, it does not create parallel nodes. Parallelism is internal optimization of the execution cycle. Between sessions, the active node resets to root. Each new session discovers its own focus via tree traversal.
 
 ### 4. Delegation by capability
 The predicate determines the executor. Abstract predicates → more capable model. Leaf predicates → cheaper model. "Who can satisfy this predicate?" is the only criterion.

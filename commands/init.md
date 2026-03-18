@@ -55,7 +55,11 @@ If `.fractal/learnings.md` exists, read it to calibrate predicate proposals.
   - Continue → invoke `/fractal:run`. STOP.
   - Redefine → go to Phase 0 (mutation path).
 - **`.fractal/` has exactly 1 tree + $ARGUMENTS** → treat as new/redefined objective. Go to Phase 0 (mutation path).
-- **Multiple trees** → "Múltiplas árvores encontradas. Execute /fractal:doctor --fix para limpar."
+- **Multiple trees + no $ARGUMENTS** → list existing trees, ask:
+  "Árvores existentes: <list>. Quer continuar em uma delas ou criar nova?"
+  - Continue → ask which tree, then invoke `/fractal:run <tree-name>`. STOP.
+  - New → go to Phase 0 (new tree will coexist with existing ones).
+- **Multiple trees + $ARGUMENTS** → treat as new tree objective. Go to Phase 0.
 
 ## Step 3: Phase 0 — Extract the objective
 
@@ -186,6 +190,6 @@ When redefining an existing tree's objective:
 - One question at a time. Never stack.
 - Push back on vague or unverifiable predicates.
 - Phase 0 depth calibrated to context.
-- Single-tree constraint: never create a second tree. If tree exists → mutation or continue.
+- Multiple trees allowed. Each tree is independent under `.fractal/`.
 - After tree creation or continue → always end with `/fractal:run`. STOP.
 - Subagents use model: sonnet. Never opus.

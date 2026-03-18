@@ -1,7 +1,7 @@
 {
   "name": "fractal",
   "description": "Fractal — recursive project management for Claude Code. Decomposes goals into predicates, works on the riskiest unknown first.",
-  "version": "0.7.1",
+  "version": "0.9.0",
   "author": {
     "name": "rmolines"
   }

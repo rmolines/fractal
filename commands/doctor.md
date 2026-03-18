@@ -34,14 +34,14 @@ If `.fractal/` does not exist → "Nenhuma árvore encontrada. Execute /fractal:
 
 ## Checks — execute in order
 
-### Check 1: Single-tree constraint
+### Check 1: Tree presence
 
 Count top-level dirs with `root.md` inside `.fractal/`.
 
 - 0 trees → `[FAIL] Nenhuma árvore encontrada.`
 - 1 tree → `[PASS] Uma árvore: <name>`
-- N > 1 → `[FAIL] Múltiplas árvores: <list>. Constraint: uma por repo.`
-  - `--fix`: ask which to keep. Offer to remove others (move to `.fractal/_archive/`).
+- N > 1 → `[INFO] Múltiplas árvores: <list>.` Validate each tree independently.
+  - `--fix`: offer to archive trees where root status is `satisfied`.
 
 ### Check 2: root.md integrity
 
