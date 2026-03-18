@@ -79,6 +79,24 @@ if [ -z "$ACTIVE_NODE" ]; then
   ACTIVE_NODE="."
 fi
 
+# ── Session-aware active_node override ───────────────────────────────────────
+# If a session.lock exists anywhere in the tree for this session's $PPID,
+# that node is the active_node for this session — regardless of root.md.
+# This prevents parallel sessions from clobbering each other's active_node.
+SESSION_LOCK_NODE=""
+while IFS= read -r -d '' LOCK_FILE; do
+  LOCK_PID="$(get_field "$LOCK_FILE" pid 2>/dev/null || true)"
+  if [ "$LOCK_PID" = "$PPID" ]; then
+    LOCK_DIR="$(dirname "$LOCK_FILE")"
+    SESSION_LOCK_NODE="${LOCK_DIR#"$TREE_PATH/"}"
+    break
+  fi
+done < <(find "$TREE_PATH" -name "session.lock" -print0 2>/dev/null | sort -z)
+
+if [ -n "$SESSION_LOCK_NODE" ]; then
+  ACTIVE_NODE="$SESSION_LOCK_NODE"
+fi
+
 # ── Resolve active node path ─────────────────────────────────────────────────
 
 if [ "$ACTIVE_NODE" = "." ]; then

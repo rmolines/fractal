@@ -467,25 +467,31 @@ Done.
 
 When the user **approves** the patch result, persist a leaf node in the fractal tree.
 
-**Step 0 — Locate tree context:**
+**Step 0 — Suggest placement:**
 
-```bash
-TREE_DIR=$(ls -d "$FRACTAL_DIR"/*/ 2>/dev/null | head -1)
-ROOT_MD="$TREE_DIR/root.md"
-ACTIVE_NODE=$(grep "^active_node:" "$ROOT_MD" | sed 's/^active_node: //' | tr -d '"')
+Analyze the patch description and files changed. Identify which existing branch node in the tree is the best semantic parent. Consider:
+- Which branch predicate does this patch advance?
+- Which files were changed — do they overlap with an existing branch's scope?
+- If no branch fits, the tree root is the parent.
+
+Run `fractal-tree.sh` to see the current tree structure, then propose placement using `AskUserQuestion` (header: "Placement"):
+
+```
+📍 PATCH | <slug>
+🎯 <patch description (max 80 chars)>
+
+Onde encaixar este patch na arvore?
+Sugestao: sob "<parent_predicate_slug>" — <1-line justification>
 ```
 
-If `active_node` is `"."` or empty, place the leaf directly under the tree root.
-Otherwise, place it under the active node's directory.
+Options: "Aceitar sugestao" / "Colocar na raiz" / "Escolher outro" (free text for alternative parent path).
 
 **Step 1 — Create leaf node:**
 
+Use the confirmed parent path from Step 0.
+
 ```bash
-PARENT_DIR="$TREE_DIR"
-if [ "$ACTIVE_NODE" != "." ] && [ -n "$ACTIVE_NODE" ]; then
-  PARENT_DIR="$TREE_DIR/$ACTIVE_NODE"
-fi
-NODE_DIR="$PARENT_DIR/patch-<slug>"
+NODE_DIR="<tree_path>/<parent_rel>/patch-<slug>"
 mkdir -p "$NODE_DIR"
 ```
 
@@ -498,19 +504,20 @@ status: satisfied
 created: <date>
 origin: patch
 ---
-
-# Notes
-
-Implemented via /fractal:patch.
-
-## Result
-<subagent summary>
-
-## Files changed
-<list>
 ```
 
-This replaces the previous orphan node system. Patches always belong to the tree.
+**Step 3 — Write conclusion.md:**
+
+```markdown
+---
+satisfied_by: patch
+created: <date>
+---
+
+<subagent summary — what was done, key decisions, files changed>
+```
+
+The `conclusion.md` follows the same format as sprint conclusions. This ensures the context protocol (which reads conclusions from satisfied nodes) can find and use patch results for progressive context loading.
 
 If discarded, no node is created.
 

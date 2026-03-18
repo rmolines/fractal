@@ -325,6 +325,7 @@ The specify step writes this file for leaf nodes after discovery classifies them
 ```markdown
 ---
 predicate: "the verifiable condition from predicate.md"
+verification: objective | subjective
 created: YYYY-MM-DD
 ---
 
@@ -350,6 +351,7 @@ created: YYYY-MM-DD
 | Field | Type | Rules |
 |---|---|---|
 | `predicate` | string | Copied exactly from the node's `predicate.md`. Must match. |
+| `verification` | enum | `objective` (agent can self-assess via tests/metrics) / `subjective` (requires human judgment). Optional — omit for standard fractal trees. Populated from evaluator output in objection trees. |
 | `created` | date | YYYY-MM-DD |
 | Acceptance Criteria | list | Each criterion is verifiable — you can unambiguously say "yes" or "no". Each maps to at least one deliverable in the eventual plan. |
 | Out of Scope | list | Items explicitly excluded. `/fractal:review` checks for violations. |
