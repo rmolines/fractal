@@ -425,17 +425,53 @@ function computeLayout() {
   const W = container.offsetWidth || 900;
   const result = {};
 
-  for (let d = 0; d <= maxDepth; d++) {
-    const nodes = byDepth[d] || [];
-    const count = nodes.length;
-    const totalW = count * CARD_W + (count - 1) * NODE_GAP;
-    const startX = Math.max(PADDING_SIDES, (W - totalW) / 2);
-    const y = PADDING_TOP + d * LEVEL_GAP;
-    nodes.forEach((node, i) => {
-      const x = startX + i * (CARD_W + NODE_GAP);
-      result[node.slug] = { x, y, cx: x + CARD_W / 2, cy: y + CARD_H / 2 };
+  // Build children map: { slug → [child_slug, ...] }
+  const childrenMap = {};
+  allNodes.forEach(n => { childrenMap[n.slug] = []; });
+  allNodes.forEach(n => {
+    if (n.parent && childrenMap[n.parent]) {
+      childrenMap[n.parent].push(n.slug);
+    }
+  });
+
+  // Bottom-up: compute subtree width for each node
+  const widthCache = {};
+  function subtreeWidth(slug) {
+    if (widthCache[slug] !== undefined) return widthCache[slug];
+    const kids = childrenMap[slug] || [];
+    if (kids.length === 0) {
+      widthCache[slug] = CARD_W;
+      return CARD_W;
+    }
+    const totalKids = kids.reduce((sum, k) => sum + subtreeWidth(k), 0);
+    const w = Math.max(CARD_W, totalKids + NODE_GAP * (kids.length - 1));
+    widthCache[slug] = w;
+    return w;
+  }
+  allNodes.forEach(n => subtreeWidth(n.slug));
+
+  // Top-down: assign X positions, centering each node over its subtree block
+  const depthMap = {};
+  allNodes.forEach(n => { depthMap[n.slug] = n.depth; });
+
+  function assignX(slug, blockLeft) {
+    const w = widthCache[slug];
+    const x = blockLeft + (w - CARD_W) / 2;
+    const depth = depthMap[slug];
+    const y = PADDING_TOP + depth * LEVEL_GAP;
+    result[slug] = { x, y, cx: x + CARD_W / 2, cy: y + CARD_H / 2 };
+    const kids = childrenMap[slug] || [];
+    let offset = 0;
+    kids.forEach(kid => {
+      assignX(kid, blockLeft + offset);
+      offset += widthCache[kid] + NODE_GAP;
     });
   }
+
+  const rootW = subtreeWidth('root');
+  const startX = Math.max(PADDING_SIDES, (W - rootW) / 2);
+  assignX('root', startX);
+
   return result;
 }
 
