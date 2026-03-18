@@ -1,4 +1,4 @@
-# Fractal: A Recursive Planning Primitive for Human-Agent Collaboration
+# Fractal Loop: A Recursive Planning Primitive for Human-Agent Collaboration
 
 **Rafael Molines**
 March 2026
@@ -7,7 +7,7 @@ March 2026
 
 ## Abstract
 
-Planning frameworks for AI agents impose rigid taxonomies that break on contact with reality. Plans go stale, hierarchies are arbitrary, and agents lose context across sessions. We present Fractal, a recursive planning primitive that replaces fixed lifecycles with a single self-similar operation: `fractal(predicate)`. The key insight is that goals decompose into verifiable conditions, not tasks — and that this decomposition has the same algebraic structure at every scale, from "build a company" to "rename this variable." The operation terminates when a predicate is satisfied, not when recursion reaches a fixed depth. An evaluator classifies each predicate (branch, leaf, or unachievable) and proposes one child at a time; the tree grows lazily and the parent is re-evaluated after each child resolves. We describe the theoretical grounding across seven independent fields, the implementation as a Claude Code plugin with a filesystem-as-state architecture, and empirical observations from managing the project's own development with the primitive: 71 nodes, 34 satisfied, 36 pending, 1 pruned, maximum depth 3 levels. The pruned node demonstrates the system's ability to recognize and abandon failed paths. Market validation confirms the pain is real, the approach is differentiated, and no equivalent tool exists.
+Planning frameworks for AI agents impose rigid taxonomies that break on contact with reality. Plans go stale, hierarchies are arbitrary, and agents lose context across sessions. We present Fractal Loop, a recursive planning primitive that replaces fixed lifecycles with a single self-similar operation: `fractal(predicate)`. The key insight is that goals decompose into verifiable conditions, not tasks — and that this decomposition has the same algebraic structure at every scale, from "build a company" to "rename this variable." The operation terminates when a predicate is satisfied, not when recursion reaches a fixed depth. An evaluator classifies each predicate (branch, leaf, or unachievable) and proposes one child at a time; the tree grows lazily and the parent is re-evaluated after each child resolves. We describe the theoretical grounding across seven independent fields, the implementation as a Claude Code plugin with a filesystem-as-state architecture, and empirical observations from managing the project's own development with the primitive: 71 nodes, 34 satisfied, 36 pending, 1 pruned, maximum depth 3 levels. The pruned node demonstrates the system's ability to recognize and abandon failed paths. Market validation confirms the pain is real, the approach is differentiated, and no equivalent tool exists.
 
 ---
 
@@ -21,7 +21,7 @@ The standard response is more structure: add an escalation mechanism, add a re-p
 
 The wrong model is: *work is a tree with a fixed branching rule*. The right model is: *work is a tree with a uniform recursive structure and a learned termination condition*.
 
-This paper describes Fractal, a planning primitive built on the right model. The central claim is simple: a single recursive operation — applied identically at every scale, with a capable evaluator deciding when to stop — is sufficient to manage work from the strategic level to the implementation level. No fixed hierarchy. No fixed lifecycle. One operation, repeated.
+This paper describes Fractal Loop, a planning primitive built on the right model. The central claim is simple: a single recursive operation — applied identically at every scale, with a capable evaluator deciding when to stop — is sufficient to manage work from the strategic level to the implementation level. No fixed hierarchy. No fixed lifecycle. One operation, repeated.
 
 The claim is not self-evident, and making it precise requires answering three questions: (1) What is the unit of work that makes the algebra close? (2) When does the recursion stop? (3) Why does this work when simpler recursive agents (AutoGPT, early ReAct systems) famously do not?
 
@@ -159,9 +159,9 @@ This is a meaningful claim. When model quality crosses a threshold — Opus-leve
 
 The consequence is structural: exponential search collapses into linear traversal. Without a trustworthy evaluator, every branch is a guess, and the search space is exponential in the depth of uncertainty. With a trustworthy evaluator, each call produces the approximately correct next step, and the tree grows along the correct path.
 
-This is what makes Fractal work where AutoGPT failed: not just recursion, but recursion with a calibrated oracle at each decision point. The model quality threshold is not incidental — it is load-bearing. Lower the evaluator quality and the system becomes non-functional. This is why the evaluate subagent runs on Opus while the execution subagents run on Sonnet. The evaluation step is the highest-leverage decision in the system, and it runs exactly once per node.
+This is what makes Fractal Loop work where AutoGPT failed: not just recursion, but recursion with a calibrated oracle at each decision point. The model quality threshold is not incidental — it is load-bearing. Lower the evaluator quality and the system becomes non-functional. This is why the evaluate subagent runs on Opus while the execution subagents run on Sonnet. The evaluation step is the highest-leverage decision in the system, and it runs exactly once per node.
 
-The implication for the field is that planning framework sophistication and model capability are substitutes. As model quality increases, planning frameworks can become simpler. Fractal is a bet on that trajectory: by the time models are reliable enough, the correct framework is the simplest possible recursive one.
+The implication for the field is that planning framework sophistication and model capability are substitutes. As model quality increases, planning frameworks can become simpler. Fractal Loop is a bet on that trajectory: by the time models are reliable enough, the correct framework is the simplest possible recursive one.
 
 ### 3.3 Progressive Disclosure as Living Documentation
 
@@ -209,19 +209,19 @@ The primitive appears to have been independently discovered across seven fields.
 | Category Theory (F-algebras) | Initial algebra | Same morphism at every level (catamorphism) |
 | Spatial structures (Quadtree) | Adaptive subdivision | Internal heterogeneity of the cell |
 
-**Hierarchical Task Networks (HTN):** The decomposition structure of HTN planning is directly analogous. In HTN, tasks are either primitive (directly executable) or composite (decomposed into subtasks). The type check "primitive or composite" is the analog of Fractal's "leaf or branch." The key difference is that HTN fixes the decomposition rules in a domain model; Fractal derives them dynamically from an evaluator.
+**Hierarchical Task Networks (HTN):** The decomposition structure of HTN planning is directly analogous. In HTN, tasks are either primitive (directly executable) or composite (decomposed into subtasks). The type check "primitive or composite" is the analog of Fractal Loop's "leaf or branch." The key difference is that HTN fixes the decomposition rules in a domain model; Fractal Loop derives them dynamically from an evaluator.
 
-**Reinforcement Learning Options:** The Options framework defines a temporally extended action as a triple ⟨I, π, β⟩: an initiation set, a policy, and a termination condition. The termination condition β is a predicate over states. Fractal's leaf type is structurally identical to an option's termination condition: it defines when the current sub-task is complete and control should return to the parent. The Option-Critic architecture (Bacon et al., 2017) showed that termination conditions can be learned end-to-end, which is exactly what Fractal's evaluator does.
+**Reinforcement Learning Options:** The Options framework defines a temporally extended action as a triple ⟨I, π, β⟩: an initiation set, a policy, and a termination condition. The termination condition β is a predicate over states. Fractal's leaf type is structurally identical to an option's termination condition: it defines when the current sub-task is complete and control should return to the parent. The Option-Critic architecture (Bacon et al., 2017) showed that termination conditions can be learned end-to-end, which is exactly what Fractal Loop's evaluator does.
 
-**Model Predictive Control (MPC):** MPC plans N steps ahead, commits one step, observes, and replans. The receding horizon is calibrated to the dominant time constant of the controlled system. Fractal's lazy tree growth is structurally MPC: propose one child, execute it, re-evaluate. The "horizon" is always one child. This is precisely the right tradeoff when the evaluator is reliable but the future is uncertain: plan minimally, commit once, and use all available information at each step.
+**Model Predictive Control (MPC):** MPC plans N steps ahead, commits one step, observes, and replans. The receding horizon is calibrated to the dominant time constant of the controlled system. Fractal Loop's lazy tree growth is structurally MPC: propose one child, execute it, re-evaluate. The "horizon" is always one child. This is precisely the right tradeoff when the evaluator is reliable but the future is uncertain: plan minimally, commit once, and use all available information at each step.
 
 **Minimum Description Length (MDL):** Information theory provides a compression-based stopping rule for decomposition. Partition a set if and only if the gain in description efficiency exceeds the cost of the partition itself. Applied to predicates: decompose if and only if the children are more compressible than the parent. The point at which decomposition stops paying off is exactly the leaf level — a node that is smaller than the overhead of representing another partition.
 
-**Y Combinator:** The Y combinator is the canonical fixed-point operator: `Y f = f (Y f)`. The recursion terminates when `f` returns a result without calling its argument. In Fractal, `f` is the evaluate-and-route function; the recursion terminates when evaluate returns `leaf` or `unachievable`. The termination condition lives in the predicate (the argument), not in a depth counter (the application).
+**Y Combinator:** The Y combinator is the canonical fixed-point operator: `Y f = f (Y f)`. The recursion terminates when `f` returns a result without calling its argument. In Fractal Loop, `f` is the evaluate-and-route function; the recursion terminates when evaluate returns `leaf` or `unachievable`. The termination condition lives in the predicate (the argument), not in a depth counter (the application).
 
 **F-algebras:** A catamorphism is a fold over a recursive data structure that uses the same morphism at every level. The predicate tree is an F-algebra where the functor is "predicate with zero or more sub-predicates." Satisfaction is a catamorphism: leaves are satisfied by the world, branches are satisfied by folding children's satisfactions. The algebra is closed because the morphism at every level is identical.
 
-**Quadtrees:** Adaptive spatial subdivision continues splitting a cell until its internal heterogeneity falls below a threshold. The subdivision criterion is a predicate on the cell's contents, not a fixed depth. A region with uniform density becomes a leaf immediately; a region with high variation is subdivided further. This is structurally identical to Fractal's termination rule: a predicate that is directly executable becomes a leaf; a predicate that requires clarification is subdivided.
+**Quadtrees:** Adaptive spatial subdivision continues splitting a cell until its internal heterogeneity falls below a threshold. The subdivision criterion is a predicate on the cell's contents, not a fixed depth. A region with uniform density becomes a leaf immediately; a region with high variation is subdivided further. This is structurally identical to Fractal Loop's termination rule: a predicate that is directly executable becomes a leaf; a predicate that requires clarification is subdivided.
 
 The convergence across these fields — AI planning, control theory, information theory, functional programming, category theory, and data structures — suggests that the recursive predicate primitive is not a design choice but a mathematical necessity. These fields were not looking for the same structure; they found it independently because it is the correct answer to a recurring problem.
 
@@ -231,19 +231,19 @@ The convergence across these fields — AI planning, control theory, information
 
 ### 5.1 Academic Work
 
-**ADaPT** (Allen AI, NAACL 2024) is the closest prior work in the academic literature. ADaPT follows an attempt → fail → decompose → repeat loop that achieves +28% on benchmarks over flat execution. The structural difference is that ADaPT decomposes only on failure and uses binary success/failure predicates. Fractal evaluates proactively, before failure, and uses graded predicates with explicit uncertainty scoring. ADaPT also lacks human-in-the-loop validation gates.
+**ADaPT** (Allen AI, NAACL 2024) is the closest prior work in the academic literature. ADaPT follows an attempt → fail → decompose → repeat loop that achieves +28% on benchmarks over flat execution. The structural difference is that ADaPT decomposes only on failure and uses binary success/failure predicates. Fractal Loop evaluates proactively, before failure, and uses graded predicates with explicit uncertainty scoring. ADaPT also lacks human-in-the-loop validation gates.
 
-**HyperTree Planning** (ICML 2025) applies hierarchical divide-and-conquer to reasoning tasks, achieving 3.6x improvement over o1-preview on mathematical benchmarks. The insight — that hard problems can be decomposed into easier sub-problems — is shared with Fractal, but HyperTree Planning operates on closed problems with known solutions. Fractal operates on open-ended work where the solution is not known in advance and the predicate may need to be reformulated.
+**HyperTree Planning** (ICML 2025) applies hierarchical divide-and-conquer to reasoning tasks, achieving 3.6x improvement over o1-preview on mathematical benchmarks. The insight — that hard problems can be decomposed into easier sub-problems — is shared with Fractal Loop, but HyperTree Planning operates on closed problems with known solutions. Fractal Loop operates on open-ended work where the solution is not known in advance and the predicate may need to be reformulated.
 
-**LADDER** (2025) uses recursion to generate progressively easier variants of problems, bootstrapping a solver from the bottom up. Like Fractal, the termination condition is problem-specific rather than depth-based. LADDER is an optimization technique rather than a planning framework; it does not address human collaboration or real-world action integration.
+**LADDER** (2025) uses recursion to generate progressively easier variants of problems, bootstrapping a solver from the bottom up. Like Fractal Loop, the termination condition is problem-specific rather than depth-based. LADDER is an optimization technique rather than a planning framework; it does not address human collaboration or real-world action integration.
 
-**The Ralph Loop** (Huntley, 2025) and **Autoresearch** (Karpathy, 2026) both describe flat loops with external verification. These are equivalent to Fractal's base case — a single leaf predicate executing a cycle. Both validate that tight loop/verify cycles with capable models produce reliable results. Neither provides a compositional structure for managing work above the single-cycle level.
+**The Ralph Loop** (Huntley, 2025) and **Autoresearch** (Karpathy, 2026) both describe flat loops with external verification. These are equivalent to Fractal Loop's base case — a single leaf predicate executing a cycle. Both validate that tight loop/verify cycles with capable models produce reliable results. Neither provides a compositional structure for managing work above the single-cycle level.
 
 ### 5.2 Practical Tools
 
 The agent development tooling ecosystem has produced a range of planning tools that share parts of the problem formulation:
 
-| Tool | Approach | Key difference from Fractal |
+| Tool | Approach | Key difference from Fractal Loop |
 |---|---|---|
 | Task Master (~27k stars) | PRD → tasks → subtasks in JSON, MCP server | Flat decomposition. No parent re-evaluation after child completion. Tasks as data objects, not predicates. |
 | BMAD Method | Specialized agents per phase (PM, Architect, Dev, UX) | Role-based, phase-fixed. Rich orchestration but rigid taxonomy. |
@@ -251,15 +251,15 @@ The agent development tooling ecosystem has produced a range of planning tools t
 | ICM | Folder-as-workflow-stage, one agent reads the right files | Same filesystem-as-truth insight. Lacks recursive structure and predicate concept. |
 | Claude Code Tasks (native) | Persistent task list, DAG dependencies | Operational task tracking. State is a checklist, not a predicate tree. |
 
-The pattern across all existing tools is consistent: they impose a fixed hierarchy and a fixed lifecycle. The hierarchy is different (missions, epics, phases) but the structure is the same: a taxonomy decided in advance, with work slotted into the appropriate level. Fractal's key differentiator is not any individual feature but the single-primitive design: there is no hierarchy to slot work into, because the hierarchy emerges from the problem.
+The pattern across all existing tools is consistent: they impose a fixed hierarchy and a fixed lifecycle. The hierarchy is different (missions, epics, phases) but the structure is the same: a taxonomy decided in advance, with work slotted into the appropriate level. Fractal Loop's key differentiator is not any individual feature but the single-primitive design: there is no hierarchy to slot work into, because the hierarchy emerges from the problem.
 
-**ICM** (Interpreted Context Methodology) is the closest independent invention. ICM uses folder structure as agent architecture and the filesystem as the state store — the same insight as Fractal's `.fractal/` directory. ICM lacks the recursive structure, the predicate concept, and the re-evaluation logic, but the filesystem insight is identical and was reached independently.
+**ICM** (Interpreted Context Methodology) is the closest independent invention. ICM uses folder structure as agent architecture and the filesystem as the state store — the same insight as Fractal Loop's `.fractal/` directory. ICM lacks the recursive structure, the predicate concept, and the re-evaluation logic, but the filesystem insight is identical and was reached independently.
 
 ---
 
 ## 6. Implementation
 
-Fractal is implemented as a Claude Code plugin. The implementation is intentionally minimal: pure shell scripts and markdown files, no dependencies, no build step.
+Fractal Loop is implemented as a Claude Code plugin. The implementation is intentionally minimal: pure shell scripts and markdown files, no dependencies, no build step.
 
 ### 6.1 Filesystem as State
 
@@ -315,9 +315,9 @@ Parallel sessions are supported via session lock files. Each session acquires a 
 
 ## 7. Empirical Observations
 
-Fractal manages its own development using the Fractal primitive. This self-referential structure provides a concrete empirical case: the system can be observed directly.
+Fractal Loop manages its own development using the Fractal Loop primitive. This self-referential structure provides a concrete empirical case: the system can be observed directly.
 
-As of March 2026, the tree contains 71 nodes across three levels of depth: 34 satisfied, 36 pending, 1 pruned. The current root predicate is: "developers who use Claude Code find Fractal, understand the proposal in under 2 minutes, and try it."
+As of March 2026, the tree contains 71 nodes across three levels of depth: 34 satisfied, 36 pending, 1 pruned. The current root predicate is: "developers who use Claude Code find Fractal Loop, understand the proposal in under 2 minutes, and try it."
 
 **Tree characteristics:**
 
@@ -339,7 +339,7 @@ The fact that the project manages itself with its own primitive is not merely a 
 
 ## 8. Limitations and Future Work
 
-**Evaluator dependency.** The system's correctness relies on the evaluator being reliable. With a weaker model, the evaluation step makes more errors, bad decompositions compound, and the tree diverges. The current design explicitly assigns the most capable available model (Opus) to evaluation. As smaller models improve, this constraint will relax, but it is a genuine limitation today. Operators running Fractal with weaker models should expect more human intervention at evaluation gates.
+**Evaluator dependency.** The system's correctness relies on the evaluator being reliable. With a weaker model, the evaluation step makes more errors, bad decompositions compound, and the tree diverges. The current design explicitly assigns the most capable available model (Opus) to evaluation. As smaller models improve, this constraint will relax, but it is a genuine limitation today. Operators running Fractal Loop with weaker models should expect more human intervention at evaluation gates.
 
 **Single-tree-per-repo constraint.** Each repository supports at most one predicate tree. This is a design choice, not a technical limitation — multiple trees in the same repo would require a tie-breaking rule for the active node pointer. The constraint works well for projects with a single coherent goal; it becomes awkward for repositories serving multiple independent purposes. Future work could support multiple named trees.
 
@@ -353,15 +353,15 @@ The fact that the project manages itself with its own primitive is not merely a 
 
 ## 9. Conclusion
 
-The Fractal primitive is simple enough to describe in a pseudocode function. Its implications are broader.
+The Fractal Loop primitive is simple enough to describe in a pseudocode function. Its implications are broader.
 
-The standard intuition about planning complexity is that harder problems require more sophisticated planning structures. Fractal inverts this: harder problems require a better evaluator, not a more complex structure. The planning structure can be maximally simple — a single recursive operation — as long as the oracle deciding when to stop is reliable.
+The standard intuition about planning complexity is that harder problems require more sophisticated planning structures. Fractal Loop inverts this: harder problems require a better evaluator, not a more complex structure. The planning structure can be maximally simple — a single recursive operation — as long as the oracle deciding when to stop is reliable.
 
 This shifts the hard problem from framework design to model quality. Planning frameworks, by this account, are not products to be engineered in isolation. They are interfaces between human judgment and model capability, and their correct design depends entirely on where that capability stands. The right framework for 2023 models is different from the right framework for 2026 models — not because the problem changed, but because the oracle changed.
 
 The predicate tree unifies three things that are usually maintained separately: the plan (what we intend to achieve), the log (what we have achieved), and the state (what is currently being worked on). Unifying them is not a database design decision — it is a consequence of using predicates, which are the right semantic unit for all three purposes. A predicate in `pending` state is a plan. A predicate in `satisfied` state with a `conclusion.md` is a log entry. The `active_node` pointer is the session state.
 
-Whether this is the right paradigm depends on a bet about model capability trajectories. If evaluators become reliable at the Opus level across the industry, Fractal or something structurally similar is likely to converge as the correct approach. If evaluators plateau below that threshold, more elaborate verification mechanisms will be needed. We believe the trajectory favors the simple recursive structure, and this paper is a contribution to understanding why.
+Whether this is the right paradigm depends on a bet about model capability trajectories. If evaluators become reliable at the Opus level across the industry, Fractal Loop or something structurally similar is likely to converge as the correct approach. If evaluators plateau below that threshold, more elaborate verification mechanisms will be needed. We believe the trajectory favors the simple recursive structure, and this paper is a contribution to understanding why.
 
 The implementation is available at [https://github.com/rmolines/fractal](https://github.com/rmolines/fractal).
 

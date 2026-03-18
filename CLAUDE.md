@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Fractal — recursive project management for Claude Code. A plugin that decomposes goals into predicates and works on the riskiest unknown first. One operation, repeated at any scale.
+Fractal Loop — recursive project management for Claude Code. A plugin that decomposes goals into predicates and works on the riskiest unknown first. One operation, repeated at any scale.
 
 **Version:** 0.9.0 | **Plugin manifest:** `.claude-plugin/plugin.json`
 

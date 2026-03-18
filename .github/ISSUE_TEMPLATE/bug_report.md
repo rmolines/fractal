@@ -14,4 +14,4 @@ labels: bug
 **Environment:**
 - OS:
 - Claude Code version:
-- Fractal version (check `cat ~/.claude/marketplace.json`):
+- Fractal Loop version (check `cat ~/.claude/marketplace.json`):

@@ -1,4 +1,4 @@
-# 🪾 Fractal
+# 🪾 Fractal Loop
 
 **Recursive project management for Claude Code. State a goal — it figures out what to do next.**
 
@@ -6,12 +6,12 @@
 
 [Install](#install) · [How it works](#how) · [Skills](#skills) · [Full spec](./LAW.md) · [Theory](./THEORY.md)
 
-Fractal is a Claude Code plugin that decomposes goals into verifiable predicates and always works on the riskiest unknown first. You state an objective. The agent picks the piece with the most uncertainty, works on it, then reassesses. When a path fails, it backs up and tries another. Same operation at every scale. Works on any project.
+Fractal Loop is a Claude Code plugin that decomposes goals into verifiable predicates and always works on the riskiest unknown first. You state an objective. The agent picks the piece with the most uncertainty, works on it, then reassesses. When a path fails, it backs up and tries another. Same operation at every scale. Works on any project.
 
 ## How
 
 <p align="center">
-  <img src="assets/fractal-recursion.png" alt="Fractal — recursive decomposition" width="600">
+  <img src="assets/fractal-recursion.png" alt="Fractal Loop — recursive decomposition" width="600">
 </p>
 
 You give it a goal. It turns that into a verifiable condition, breaks it down one
@@ -71,7 +71,7 @@ with `INSTALL_DIR=~/your/path` before the curl command.
 Other tools ask you to decompose upfront. You write a PRD, it becomes a task
 list, the agent follows the list. If a task turns out wrong, you fix the list.
 
-Fractal doesn't need a list. You state the goal, it picks the riskiest piece,
+Fractal Loop doesn't need a list. You state the goal, it picks the riskiest piece,
 works on it, then reassesses. If a path doesn't work out, it backs up and tries
 another.
 

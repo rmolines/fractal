@@ -1,8 +1,8 @@
 /**
- * Fractal — Node State Machine (XState v5)
+ * Fractal Loop — Node State Machine (XState v5)
  *
  * DOCUMENTATION ONLY — not runtime code. Formalizes the statechart for the
- * Fractal state machine. Complies with XState v5 type signature
+ * Fractal Loop state machine. Complies with XState v5 type signature
  * but is not imported anywhere.
  *
  * Models the lifecycle of a single predicate node in the tree.

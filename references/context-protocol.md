@@ -45,7 +45,7 @@ When `/fractal:init` creates a tree in a new repo, it should also:
 1. Add a block to the repo's CLAUDE.md (or create it):
 
 ```markdown
-## Fractal tree
+## Fractal Loop tree
 
 This repo uses a fractal predicate tree in `.fractal/` for project management.
 Run `bash scripts/fractal-tree.sh` to see current state.
@@ -60,7 +60,7 @@ See `references/context-protocol.md` in the fractal plugin for the full navigati
 paths:
   - ".fractal/**"
 ---
-# Fractal tree navigation
+# Fractal Loop tree navigation
 
 When reading files in .fractal/:
 - conclusion.md contains what was achieved (oriented toward parent predicate)

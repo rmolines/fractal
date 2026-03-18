@@ -1,4 +1,4 @@
-# Fractal tree (each project has its own)
+# Fractal Loop tree (each project has its own)
 .fractal/
 
 # Session lock files (transient, managed by session-lock.sh)

@@ -10,7 +10,7 @@ if [ ! -d "${HOME}/.claude" ]; then
   exit 1
 fi
 
-echo "Installing Fractal to $INSTALL_DIR..."
+echo "Installing Fractal Loop to $INSTALL_DIR..."
 
 # Clone or pull
 if [ -d "$INSTALL_DIR" ]; then

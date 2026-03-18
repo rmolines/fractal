@@ -1,4 +1,4 @@
-# Fractal — Recursive Planning Primitive
+# Fractal Loop — Recursive Planning Primitive
 
 ## The Problem
 
@@ -121,7 +121,7 @@ The base case has two modes, and the agent decides which:
 - **Patch:** trivial predicates. Implement, validate, approve or discard.
 - **Full cycle:** complex predicates. Planning → delivery → review → ship.
 
-The Launchpad cycle survives as the execution engine in the base case. Fractal replaces the planning/hierarchy layer (mission/stage/module), but the execution cycle (planning → delivery → review → ship) is the atomic unit of work for complex predicates.
+The Launchpad cycle survives as the execution engine in the base case. Fractal Loop replaces the planning/hierarchy layer (mission/stage/module), but the execution cycle (planning → delivery → review → ship) is the atomic unit of work for complex predicates.
 
 Parallelism (multiple subagents) is an internal strategy of the cycle — it increases the capacity to satisfy larger predicates. From the tree's perspective, it is still one node, one predicate, one result.
 
@@ -234,7 +234,7 @@ Delegation criterion: "who can satisfy this predicate?" That is the only criteri
 
 **Termination is a predicate, not a depth.** The primitive needs a single parameter: the atomicity predicate. Depth, branching factor, total steps are consequences.
 
-**Fractal dimension as a consistency check.** If the primitive is self-similar, the sub-goals/step ratio should be roughly constant. Deviation indicates a non-uniform decomposition rule.
+**Fractal Loop dimension as a consistency check.** If the primitive is self-similar, the sub-goals/step ratio should be roughly constant. Deviation indicates a non-uniform decomposition rule.
 
 **Analogy to a theory of everything in physics.** The primitive unifies planning, but complexity doesn't disappear — it migrates to goal extraction and calibration. The framework becomes simple; the hard work moves elsewhere.
 

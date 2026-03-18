@@ -1,4 +1,4 @@
-# The Fractal Law
+# The Fractal Loop Law
 
 ## The primitive
 

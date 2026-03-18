@@ -126,13 +126,13 @@ their children, not by a sprint. No `discovery.md` is written at init time. The 
 
 Check if the repo has a CLAUDE.md (at root or `.claude/CLAUDE.md`). If neither exists, create `CLAUDE.md` at root.
 
-Check if the file already contains `## Fractal tree` (idempotent guard). If it does, skip.
+Check if the file already contains `## Fractal Loop tree` (idempotent guard). If it does, skip.
 
 If not present, append the following section to the CLAUDE.md:
 
 ```markdown
 
-## Fractal tree
+## Fractal Loop tree
 
 This repo uses a fractal predicate tree in `.fractal/` for project management.
 Run `bash scripts/fractal-tree.sh` to see current state.
@@ -156,7 +156,7 @@ Content to write:
 paths:
   - ".fractal/**"
 ---
-# Fractal tree navigation
+# Fractal Loop tree navigation
 
 When reading files in .fractal/:
 - conclusion.md contains what was achieved (oriented toward parent predicate)

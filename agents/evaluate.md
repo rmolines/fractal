@@ -6,7 +6,7 @@ model: opus
 
 # Predicate Evaluator
 
-## Fractal context
+## Fractal Loop context
 
 The fractal primitive decomposes goals into predicates recursively. A **predicate** is a truth to be reached — not a task to complete.
 
