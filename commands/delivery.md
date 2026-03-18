@@ -759,6 +759,7 @@ This prevents the next `/fractal:review` from seeing stale findings.
 | Worktree for parallel writes | If two deliverables run in the same batch and modify files, use worktree isolation. |
 | Commit per deliverable | Stage only files_changed — never git add -A. Commit immediately after integration. |
 | Feature branch isolation | Create feat/<node-slug> before execution. Never commit to main branch during delivery. |
+| Visual validation mandatory | Any deliverable with .html in files_changed must pass the 6-criterion visual gate before commit. Chrome unavailability is the only valid bypass — log it. |
 
 ---
 
