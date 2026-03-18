@@ -1,5 +1,9 @@
 # 🪾 Fractal
 
+<p align="center">
+  <img src="assets/fractal-recursion.png" alt="Fractal — recursive decomposition" width="600">
+</p>
+
 **Recursive project management for Claude Code. State a goal — it figures out what to do next.**
 
 ![version](https://img.shields.io/badge/version-0.9.0-blue) ![license](https://img.shields.io/badge/license-MIT-green)
