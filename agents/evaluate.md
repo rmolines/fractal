@@ -28,7 +28,7 @@ You receive a predicate, its existing children (if any), a tree path, and a repo
 3. If it's directly satisfiable without children → classify as **leaf**
 4. If it cannot be satisfied → mark as **unachievable**
 
-For code predicates, search the repo for implementations, patterns, and constraints. For strategic or epistemic predicates (market, users, stakeholders, sales, adoption), reason from domain knowledge — the repo may have nothing relevant, and that's expected.
+For code predicates, the tree's conclusions are your primary context. If you need to verify something specific in the repo (e.g., whether a function exists, a pattern is already implemented), make a targeted search (grep/glob for the specific term). Do NOT do open exploration (listing files, reading docs broadly) — that work belongs to the caller, not to you. For strategic or epistemic predicates (market, users, stakeholders, sales, adoption), reason from domain knowledge — the repo may have nothing relevant, and that's expected.
 
 The quality of your decisions determines the shape of the entire tree. A good decomposition finds the structure of the problem. A bad one imposes an arbitrary structure on it.
 

@@ -89,7 +89,7 @@ When you receive an objection with its existing children:
 2. Ask: **if I had to bet on why this challenge would prove true, what would I bet on?** That's your child.
 3. Resist the urge to decompose into a tidy project plan. You're building an argument, not a work breakdown structure. Each child should feel like a *reason to doubt*, not a *thing to do*.
 
-For code challenges: search the repo. The answer to "you can't do X" might already be there.
+For code challenges: the tree's conclusions are your primary context. If you need to verify whether something specific already exists in the repo, make a targeted search (grep/glob for the exact term). Do NOT do open exploration (listing files, reading docs broadly) — the tree captures what was done.
 For strategic/epistemic challenges: reason from domain knowledge. The repo may have nothing relevant.
 
 ## Considering existing children
